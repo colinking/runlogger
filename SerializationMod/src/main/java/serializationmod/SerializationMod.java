@@ -1,7 +1,8 @@
 package serializationmod;
 
 import basemod.*;
-import basemod.interfaces.PostInitializeSubscriber;
+import basemod.interfaces.*;
+import com.codedisaster.steamworks.SteamUGC;
 import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.core.Settings;
@@ -14,17 +15,18 @@ import java.io.IOException;
 import java.util.Properties;
 
 @SpireInitializer
-public class SerializationMod implements PostInitializeSubscriber {
+public class SerializationMod implements PostInitializeSubscriber, StartActSubscriber {
 
 	private static final Logger logger = LogManager.getLogger(SerializationMod.class.getName());
 	private static final String MODNAME = "Serialization Mod";
 	private static final String AUTHOR = "Colin King";
-	private static final String DESCRIPTION = "Serializes the state of Slay the Spire runs.";
+	private static final String DESCRIPTION = "Serializes the state of Slay the Spire runs x2";
 	private static SpireConfig communicationConfig;
 	private static final String VERBOSE_OPTION = "verbose";
 	private static final boolean DEFAULT_VERBOSITY = false;
 
 	public SerializationMod() {
+		logger.info("SerializationMod constructor running!");
 		BaseMod.subscribe(this);
 		try {
 			Properties defaults = new Properties();
@@ -38,7 +40,10 @@ public class SerializationMod implements PostInitializeSubscriber {
 	// TODO(colin): unused?
 	public static void initialize() {
 		SerializationMod mod = new SerializationMod();
+	}
 
+	public void receiveStartAct() {
+		logger.info("Hello world! Received act start...");
 	}
 
 	public void receivePostInitialize() {
