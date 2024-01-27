@@ -1,22 +1,24 @@
 package serializationmod;
 
 import basemod.ReflectionHacks;
+import com.evacipated.cardcrawl.modthespire.Loader;
+import com.evacipated.cardcrawl.modthespire.ModInfo;
 import com.google.gson.Gson;
-import com.megacrit.cardcrawl.actions.GameActionManager;
 import com.megacrit.cardcrawl.cards.AbstractCard;
 import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.core.AbstractCreature;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.events.AbstractEvent;
+import com.megacrit.cardcrawl.helpers.SeedHelper;
 import com.megacrit.cardcrawl.map.MapEdge;
 import com.megacrit.cardcrawl.map.MapRoomNode;
 import com.megacrit.cardcrawl.monsters.AbstractMonster;
 import com.megacrit.cardcrawl.monsters.EnemyMoveInfo;
 import com.megacrit.cardcrawl.neow.NeowEvent;
+import com.megacrit.cardcrawl.neow.NeowRoom;
 import com.megacrit.cardcrawl.orbs.AbstractOrb;
 import com.megacrit.cardcrawl.potions.AbstractPotion;
-import com.megacrit.cardcrawl.potions.PotionSlot;
 import com.megacrit.cardcrawl.powers.AbstractPower;
 import com.megacrit.cardcrawl.relics.AbstractRelic;
 import com.megacrit.cardcrawl.relics.RunicDome;
@@ -33,126 +35,158 @@ import com.megacrit.cardcrawl.unlock.UnlockTracker;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.TreeMap;
 
 public class GameStateConverter {
 	/**
-	 * Creates a JSON representation of the game state, which will be sent to the client.
-	 * Always present:
-	 * - "screen_name" (string): The name of the Enum representing the current screen (defined by Mega Crit)
-	 * - "is_screen_up" (boolean): The game's isScreenUp variable
-	 * - "screen_type" (string): The type of screen (or decision) that the user is facing (defined by Communication Mod)
-	 * - "screen_state" (object): The state of the current screen, see getScreenState() (as defined by Communication Mod)
-	 * - "room_phase" (string): The phase of the current room (COMBAT, EVENT, etc.)
-	 * - "action_phase" (string): The phase of the action manager (WAITING_FOR_USER_INPUT, EXECUTING_ACTIONS)
-	 * - "room_type" (string): The name of the class of the current room (ShopRoom, TreasureRoom, MonsterRoom, etc.)
-	 * - "current_hp" (int): The player's current hp
-	 * - "max_hp" (int): The player's maximum hp
-	 * - "floor" (int): The current floor number
-	 * - "act" (int): The current act number
-	 * - "act_boss" (string): The name of the current Act's visible boss encounter
-	 * - "gold" (int): The player's current gold total
-	 * - "seed" (long): The seed used by the current game
-	 * - "class" (string): The player's current class
-	 * - "ascension_level" (int): The ascension level of the current run
-	 * - "relics" (list): A list of the player's current relics
-	 * - "deck" (list): A list of the cards in the player's deck
-	 * - "potions" (list): A list of the player's potions (empty slots are PotionSlots)
-	 * - "map" (list): The current dungeon map
-	 * - "keys" (object): Contains booleans for each of the three keys to reach Act 4
-	 * Sometimes present:
-	 * - "current_action" (list): The class name of the action in the action manager queue, if not empty
-	 * - "combat_state" (list): The state of the combat (draw pile, monsters, etc.)
-	 * - "choice_list" (list): If the command is available, the possible choices for the choose command
-	 *
-	 * @return A string containing the JSON representation of the game state
+	 * State that does not change during a run.
 	 */
-	public static String getGameState() {
-		HashMap<String, Object> state = new HashMap<>();
+	public static String getRunState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 
-		state.put("screen_name", AbstractDungeon.screen.name());
-		state.put("is_screen_up", AbstractDungeon.isScreenUp);
-		state.put("screen_type", ChoiceScreenUtils.getCurrentChoiceType());
-		state.put("room_phase", AbstractDungeon.getCurrRoom().phase.toString());
-		state.put("action_phase", AbstractDungeon.actionManager.phase.toString());
-		if (AbstractDungeon.actionManager.currentAction != null) {
-			state.put("current_action", AbstractDungeon.actionManager.currentAction.getClass().getSimpleName());
-		}
-		state.put("room_type", AbstractDungeon.getCurrRoom().getClass().getSimpleName());
-		state.put("current_hp", AbstractDungeon.player.currentHealth);
-		state.put("max_hp", AbstractDungeon.player.maxHealth);
-		state.put("floor", AbstractDungeon.floorNum);
-		state.put("act", AbstractDungeon.actNum);
-		state.put("act_boss", AbstractDungeon.bossKey);
-		state.put("gold", AbstractDungeon.player.gold);
-		state.put("seed", Settings.seed);
+		state.put("_type", "state:run");
+
+		state.put("seed", SeedHelper.getString(Settings.seed));
 		state.put("class", AbstractDungeon.player.chosenClass.name());
-		HashMap<String, Integer> unlocks = new HashMap<>();
+		TreeMap<String, Object> unlocks = new TreeMap<>();
 		for (AbstractPlayer.PlayerClass cls : AbstractPlayer.PlayerClass.values()) {
 			unlocks.put(cls.name(), UnlockTracker.getUnlockLevel(cls));
 		}
+		unlocks.put("final_act", Settings.isFinalActAvailable);
 		state.put("unlocks", unlocks);
 		state.put("ascension_level", AbstractDungeon.ascensionLevel);
-
-		state.put("seeds", getSeedState());
-
-		ArrayList<Object> relics = new ArrayList<>();
-		for (AbstractRelic relic : AbstractDungeon.player.relics) {
-			relics.add(convertRelicToJson(relic));
+		TreeMap<String, Boolean> bossesSeen = new TreeMap<>();
+		for (String boss : UnlockTracker.bossSeenPref.get().keySet()) {
+			bossesSeen.put(boss, UnlockTracker.isBossSeen(boss));
 		}
+		state.put("bosses_seen", bossesSeen);
 
-		state.put("relics", relics);
-
-		ArrayList<Object> deck = new ArrayList<>();
-		for (AbstractCard card : AbstractDungeon.player.masterDeck.group) {
-			deck.add(convertCardToJson(card));
+		TreeMap<String, String> versions = new TreeMap<>();
+		versions.put("java", System.getProperty("java.version"));
+		String stsVersion = Loader.STS_VERSION;
+		if (Loader.STS_BETA) {
+			stsVersion += " BETA";
 		}
+		versions.put("sts", stsVersion);
+		state.put("versions", versions);
 
-		state.put("deck", deck);
-
-		ArrayList<Object> potions = new ArrayList<>();
-		for (AbstractPotion potion : AbstractDungeon.player.potions) {
-			potions.add(convertPotionToJson(potion));
+		TreeMap<String, String> mods = new TreeMap<>();
+		for (ModInfo info : Loader.MODINFOS) {
+			String version = null;
+			if (info.ModVersion != null) {
+				version = info.ModVersion.toString();
+			}
+			mods.put(info.getIDName(), version);
 		}
+		state.put("mods", mods);
 
-		state.put("potions", potions);
+		state.put("is_mini_blessing", GameStateConverter.isMiniBlessing());
 
-		state.put("map", convertMapToJson());
-		if (AbstractDungeon.getCurrRoom().phase.equals(AbstractRoom.RoomPhase.COMBAT)) {
-			state.put("combat_state", getCombatState());
+		if (Settings.isDemo) {
+			state.put("demo", true);
 		}
-		state.put("screen_state", getScreenState());
-
-		HashMap<String, Boolean> keys = new HashMap<>();
-		keys.put("ruby", Settings.hasRubyKey);
-		keys.put("emerald", Settings.hasEmeraldKey);
-		keys.put("sapphire", Settings.hasSapphireKey);
-		state.put("keys", keys);
 
 		Gson gson = new Gson();
 		return gson.toJson(state);
 	}
 
-	private static HashMap<String, Object> getSeedState() {
-		HashMap<String, Object> state = new HashMap<>();
-		state.put("monster", AbstractDungeon.monsterRng.counter);
-		state.put("map", AbstractDungeon.mapRng.counter);
-		state.put("event", AbstractDungeon.eventRng.counter);
-		state.put("card", AbstractDungeon.cardRng.counter);
-		state.put("treasure", AbstractDungeon.treasureRng.counter);
-		state.put("relic", AbstractDungeon.relicRng.counter);
-		state.put("potion", AbstractDungeon.potionRng.counter);
-		state.put("monster_hp", AbstractDungeon.monsterHpRng.counter);
-		state.put("ai", AbstractDungeon.aiRng.counter);
-		state.put("shuffle", AbstractDungeon.shuffleRng.counter);
-		state.put("card_random", AbstractDungeon.cardRandomRng.counter);
-		state.put("misc", AbstractDungeon.miscRng.counter);
-		return state;
+	/**
+	 * Returns true if the current run is a "mini blessing" (the character did not
+	 * reach the act 1 boss in the previous run).
+	 */
+	private static boolean isMiniBlessing() {
+		NeowRoom room = ((NeowRoom) AbstractDungeon.currMapNode.room);
+		NeowEvent event = (NeowEvent) room.event;
+		int bossCount = ReflectionHacks.getPrivate(event, NeowEvent.class, "bossCount");
+		return bossCount == 0;
 	}
 
-	private static HashMap<String, Object> getRoomState() {
+	/**
+	 * State that does not change during an act.
+	 */
+	public static String getActState() {
+		TreeMap<String, Object> state = new TreeMap<>();
+
+		state.put("_type", "state:act");
+
+		state.put("act", AbstractDungeon.actNum);
+		state.put("act_boss", AbstractDungeon.bossKey);
+		state.put("map", convertMapToJson());
+
+		Gson gson = new Gson();
+		return gson.toJson(state);
+	}
+
+	/**
+	 * All other state.
+	 */
+	public static String getFloorState() {
+		TreeMap<String, Object> state = new TreeMap<>();
+
+		state.put("_type", "state:floor");
+
+		// TODO: make easier to read by diffing against previous state
+
+		state.put("floor", AbstractDungeon.floorNum);
+		state.put("room_type", AbstractDungeon.getCurrRoom().getClass().getSimpleName());
+
+		state.put("hp_current", AbstractDungeon.player.currentHealth);
+		state.put("hp_max", AbstractDungeon.player.maxHealth);
+
+		state.put("gold", AbstractDungeon.player.gold);
+
+		ArrayList<Object> relics = new ArrayList<>();
+		for (AbstractRelic relic : AbstractDungeon.player.relics) {
+			relics.add(convertRelicToJson(relic));
+		}
+		state.put("relics", relics);
+
+		ArrayList<Object> deck = new ArrayList<>();
+		for (AbstractCard card : AbstractDungeon.player.masterDeck.group) {
+			deck.add(getCardName(card));
+		}
+		state.put("deck", deck);
+
+		ArrayList<Object> potions = new ArrayList<>();
+		for (AbstractPotion potion : AbstractDungeon.player.potions) {
+			if (potion.ID == "Potion Slot") {
+				potions.add(null);
+			} else {
+				potions.add(convertPotionToJson(potion));
+			}
+		}
+		state.put("potions", potions);
+
+		if (AbstractDungeon.getCurrRoom().phase.equals(AbstractRoom.RoomPhase.COMBAT)) {
+			state.put("combat_state", getCombatState());
+		}
+		state.put("screen_state", getScreenState());
+
+		if (AbstractDungeon.getCurrRoom().getClass() == ShopRoom.class) {
+			state.put("shop", getShopState());
+		}
+
+		TreeMap<String, Boolean> keys = new TreeMap<>();
+		if (Settings.hasRubyKey) {
+			keys.put("ruby", true);
+		}
+		if (Settings.hasEmeraldKey) {
+			keys.put("emerald", true);
+		}
+		if (Settings.hasSapphireKey) {
+			keys.put("sapphire", true);
+		}
+		if (keys.size() > 0) {
+			state.put("keys", keys);
+		}
+
+		Gson gson = new Gson();
+		return gson.toJson(state);
+	}
+
+	private static TreeMap<String, Object> getRoomState() {
 		AbstractRoom currentRoom = AbstractDungeon.getCurrRoom();
-		HashMap<String, Object> state = new HashMap<>();
+		TreeMap<String, Object> state = new TreeMap<>();
 		if (currentRoom instanceof TreasureRoom) {
 			state.put("chest_type", ((TreasureRoom) currentRoom).chest.getClass().getSimpleName());
 			state.put("chest_open", ((TreasureRoom) currentRoom).chest.isOpen);
@@ -179,28 +213,15 @@ public class GameStateConverter {
 		return text.replaceAll("#.|NL", "");
 	}
 
-	/**
-	 * The event state object contains:
-	 * "body_text" (string): The current body text for the event, or an empty string if there is none
-	 * "event_name" (string): The name of the event, in the current language
-	 * "event_id" (string): The ID of the event (NOTE: This implementation is sketchy and may not play nice with mods)
-	 * "options" (list): A list of options, in the order they are presented in game. Each option contains:
-	 * - "text" (string): The full text associated with the option (Eg. "[Banana] Heal 10 hp")
-	 * - "disabled" (boolean): Whether the current option or button is disabled. Disabled buttons cannot be chosen
-	 * - "label" (string): The simple label of a button or option (Eg. "Banana")
-	 * - "choice_index" (int): The index of the option for the choose command, if applicable
-	 *
-	 * @return The event state object
-	 */
-	private static HashMap<String, Object> getEventState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getEventState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> options = new ArrayList<>();
 		ChoiceScreenUtils.EventDialogType eventDialogType = ChoiceScreenUtils.getEventDialogType();
 		AbstractEvent event = AbstractDungeon.getCurrRoom().event;
 		int choice_index = 0;
 		if (eventDialogType == ChoiceScreenUtils.EventDialogType.IMAGE || eventDialogType == ChoiceScreenUtils.EventDialogType.ROOM) {
 			for (LargeDialogOptionButton button : ChoiceScreenUtils.getEventButtons()) {
-				HashMap<String, Object> json_button = new HashMap<>();
+				TreeMap<String, Object> json_button = new TreeMap<>();
 				json_button.put("text", removeTextFormatting(button.msg));
 				json_button.put("disabled", button.isDisabled);
 				json_button.put("label", ChoiceScreenUtils.getOptionName(button.msg));
@@ -213,7 +234,7 @@ public class GameStateConverter {
 //            state.put("body_text", removeTextFormatting(UpdateBodyTextPatch.bodyText));
 		} else {
 			for (String misc_option : ChoiceScreenUtils.getEventScreenChoices()) {
-				HashMap<String, Object> json_button = new HashMap<>();
+				TreeMap<String, Object> json_button = new TreeMap<>();
 				json_button.put("text", misc_option);
 				json_button.put("disabled", false);
 				json_button.put("label", misc_option);
@@ -242,39 +263,20 @@ public class GameStateConverter {
 		return state;
 	}
 
-	/**
-	 * The card reward state object contains:
-	 * "bowl_available" (boolean): Whether the Singing Bowl button is present
-	 * "skip_available" (boolean): Whether the card reward is skippable
-	 * "cards" (list): The list of cards that can be chosen
-	 *
-	 * @return The card reward state object
-	 */
-	private static HashMap<String, Object> getCardRewardState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getCardRewardState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		state.put("bowl_available", ChoiceScreenUtils.isBowlAvailable());
 		state.put("skip_available", ChoiceScreenUtils.isCardRewardSkipAvailable());
 		ArrayList<Object> cardRewardJson = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.cardRewardScreen.rewardGroup) {
-			cardRewardJson.add(convertCardToJson(card));
+			cardRewardJson.add(getCardName(card));
 		}
 		state.put("cards", cardRewardJson);
 		return state;
 	}
 
-	/**
-	 * The combat reward screen state object contains:
-	 * "rewards" (list): A list of reward objects, each of which contains:
-	 * - "reward_type" (string): The name of the RewardItem.RewardType enum for the reward
-	 * - "gold" (int): The amount of gold in the reward, if applicable
-	 * - "relic" (object): The relic in the reward, if applicable
-	 * - "potion" (object): The potion in the reward, if applicable
-	 * - "link" (object): The relic that the sapphire key is linked to, if applicable
-	 *
-	 * @return The combat reward screen state object
-	 */
-	private static HashMap<String, Object> getCombatRewardState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getCombatRewardState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> rewards = new ArrayList<>();
 		for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
 			rewards.add(GameStateConverter.convertRewardToJson(reward));
@@ -283,8 +285,8 @@ public class GameStateConverter {
 		return state;
 	}
 
-	public static HashMap<String, Object> convertRewardToJson(RewardItem reward) {
-		HashMap<String, Object> jsonReward = new HashMap<>();
+	public static TreeMap<String, Object> convertRewardToJson(RewardItem reward) {
+		TreeMap<String, Object> jsonReward = new TreeMap<>();
 		jsonReward.put("reward_type", reward.type.name());
 		switch (reward.type) {
 			case GOLD:
@@ -299,21 +301,18 @@ public class GameStateConverter {
 				break;
 			case SAPPHIRE_KEY:
 				jsonReward.put("link", convertRelicToJson(reward.relicLink.relic));
+			case CARD:
+				ArrayList<String> cards = new ArrayList<>();
+				for (AbstractCard card : reward.cards) {
+					cards.add(GameStateConverter.getCardName(card));
+				}
+				jsonReward.put("cards", cards);
 		}
 		return jsonReward;
 	}
 
-	/**
-	 * The map screen state object contains:
-	 * "current_node" (object): The node object for the currently selected node, if applicable
-	 * "next_nodes" (list): A list of nodes that can be chosen next
-	 * "first_node_chosen" (boolean): Whether the first node in the act has already been chosen
-	 * "boss_available" (boolean): Whether the next node choice is a boss
-	 *
-	 * @return The map screen state object
-	 */
-	private static HashMap<String, Object> getMapScreenState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getMapScreenState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		if (AbstractDungeon.getCurrMapNode() != null) {
 			state.put("current_node", convertMapRoomNodeToJson(AbstractDungeon.getCurrMapNode()));
 		}
@@ -321,21 +320,15 @@ public class GameStateConverter {
 		for (MapRoomNode node : ChoiceScreenUtils.getMapScreenNodeChoices()) {
 			nextNodesJson.add(convertMapRoomNodeToJson(node));
 		}
+		if (ChoiceScreenUtils.bossNodeAvailable()) {
+			nextNodesJson.add(getBossRoomNodeJson());
+		}
 		state.put("next_nodes", nextNodesJson);
-		state.put("first_node_chosen", AbstractDungeon.firstRoomChosen);
-		state.put("boss_available", ChoiceScreenUtils.bossNodeAvailable());
 		return state;
 	}
 
-	/**
-	 * The boss reward screen state contains:
-	 * "relics" (list): A list of relics that can be chosen from the boss
-	 * Note: Blights are not supported.
-	 *
-	 * @return The boss reward screen state object
-	 */
-	private static HashMap<String, Object> getBossRewardState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getBossRewardState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> bossRelics = new ArrayList<>();
 		for (AbstractRelic relic : AbstractDungeon.bossRelicScreen.relics) {
 			bossRelics.add(convertRelicToJson(relic));
@@ -344,68 +337,47 @@ public class GameStateConverter {
 		return state;
 	}
 
-	/**
-	 * The shop screen state contains:
-	 * "cards" (list): A list of cards available to buy
-	 * "relics" (list): A list of relics available to buy
-	 * "potions" (list): A list of potions available to buy
-	 * "purge_available" (boolean): Whether the card remove option is available
-	 * "purge_cost" (int): The cost of the card remove option
-	 *
-	 * @return The shop screen state object
-	 */
-	private static HashMap<String, Object> getShopScreenState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getShopState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> shopCards = new ArrayList<>();
 		ArrayList<Object> shopRelics = new ArrayList<>();
 		ArrayList<Object> shopPotions = new ArrayList<>();
 		for (AbstractCard card : ChoiceScreenUtils.getShopScreenCards()) {
-			HashMap<String, Object> jsonCard = convertCardToJson(card);
+			TreeMap<String, Object> jsonCard = new TreeMap<>();
+			jsonCard.put("name", GameStateConverter.getCardName(card));
 			jsonCard.put("price", card.price);
 			shopCards.add(jsonCard);
 		}
 		for (StoreRelic relic : ChoiceScreenUtils.getShopScreenRelics()) {
-			HashMap<String, Object> jsonRelic = convertRelicToJson(relic.relic);
+			TreeMap<String, Object> jsonRelic = convertRelicToJson(relic.relic);
 			jsonRelic.put("price", relic.price);
 			shopRelics.add(jsonRelic);
 		}
 		for (StorePotion potion : ChoiceScreenUtils.getShopScreenPotions()) {
-			HashMap<String, Object> jsonPotion = convertPotionToJson(potion.potion);
+			TreeMap<String, Object> jsonPotion = new TreeMap<>();
+			jsonPotion.put("id", potion.potion.ID);
 			jsonPotion.put("price", potion.price);
 			shopPotions.add(jsonPotion);
 		}
 		state.put("cards", shopCards);
 		state.put("relics", shopRelics);
 		state.put("potions", shopPotions);
-		state.put("purge_available", AbstractDungeon.shopScreen.purgeAvailable);
-		state.put("purge_cost", ShopScreen.actualPurgeCost);
+		int purgeCost = AbstractDungeon.shopScreen.purgeAvailable ? ShopScreen.actualPurgeCost : -1;
+		state.put("purge_cost", purgeCost);
 		return state;
 	}
 
-	/**
-	 * The grid select screen state contains:
-	 * "cards" (list): The list of cards available to pick, including selected cards
-	 * "selected_cards" (list): The list of cards that are currently selected
-	 * "num_cards" (int): The number of cards that must be selected
-	 * "any_number" (boolean): Whether any number of cards can be selected
-	 * "for_upgrade" (boolean): Whether the selected cards will be upgraded
-	 * "for_transform" (boolean): Whether the selected cards will be transformed
-	 * _for_purge" (boolean): Whether the selected cards will be removed from the deck
-	 * "confirm_up" (boolean): Whether the confirm screen is up, and cards cannot be selected
-	 *
-	 * @return The grid select screen state object
-	 */
-	private static HashMap<String, Object> getGridState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getGridState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> gridJson = new ArrayList<>();
 		ArrayList<Object> gridSelectedJson = new ArrayList<>();
 		ArrayList<AbstractCard> gridCards = ChoiceScreenUtils.getGridScreenCards();
 		GridCardSelectScreen screen = AbstractDungeon.gridSelectScreen;
 		for (AbstractCard card : gridCards) {
-			gridJson.add(convertCardToJson(card));
+			gridJson.add(getCardName(card));
 		}
 		for (AbstractCard card : screen.selectedCards) {
-			gridSelectedJson.add(convertCardToJson(card));
+			gridSelectedJson.add(getCardName(card));
 		}
 		int numCards = (int) ReflectionHacks.getPrivate(screen, GridCardSelectScreen.class, "numCards");
 		boolean forUpgrade = (boolean) ReflectionHacks.getPrivate(screen, GridCardSelectScreen.class, "forUpgrade");
@@ -422,29 +394,20 @@ public class GameStateConverter {
 		return state;
 	}
 
-	/**
-	 * The hand select screen state contains:
-	 * "hand" (list): The list of cards currently in your hand, not including selected cards
-	 * "selected" (list): The list of currently selected cards
-	 * "max_cards" (int): The maximum number of cards that can be selected
-	 * "can_pick_zero" (boolean): Whether zero cards can be selected
-	 *
-	 * @return The hand select screen state object
-	 */
-	private static HashMap<String, Object> getHandSelectState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getHandSelectState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		ArrayList<Object> handJson = new ArrayList<>();
 		ArrayList<Object> selectedJson = new ArrayList<>();
 		ArrayList<AbstractCard> handCards = AbstractDungeon.player.hand.group;
 		// As far as I can tell, this comment is a Java 8 analogue of a Python list comprehension? I think just looping is more readable.
-		// handJson = handCards.stream().map(GameStateConverter::convertCardToJson).collect(Collectors.toCollection(ArrayList::new));
+		// handJson = handCards.stream().map(GameStateConverter::getCardName).collect(Collectors.toCollection(ArrayList::new));
 		for (AbstractCard card : handCards) {
-			handJson.add(convertCardToJson(card));
+			handJson.add(getCardName(card));
 		}
 		state.put("hand", handJson);
 		ArrayList<AbstractCard> selectedCards = AbstractDungeon.handCardSelectScreen.selectedCards.group;
 		for (AbstractCard card : selectedCards) {
-			selectedJson.add(convertCardToJson(card));
+			selectedJson.add(getCardName(card));
 		}
 		state.put("selected", selectedJson);
 		state.put("max_cards", AbstractDungeon.handCardSelectScreen.numCardsToSelect);
@@ -452,15 +415,8 @@ public class GameStateConverter {
 		return state;
 	}
 
-	/**
-	 * The game over screen state contains:
-	 * "score" (int): Your final score
-	 * "victory" (boolean): Whether you won
-	 *
-	 * @return The game over screen state object
-	 */
-	private static HashMap<String, Object> getGameOverState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getGameOverState() {
+		TreeMap<String, Object> state = new TreeMap<>();
 		int score = 0;
 		boolean victory = false;
 		if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.DEATH) {
@@ -475,12 +431,7 @@ public class GameStateConverter {
 		return state;
 	}
 
-	/**
-	 * Gets the appropriate screen state object
-	 *
-	 * @return An object containing your current screen state
-	 */
-	private static HashMap<String, Object> getScreenState() {
+	private static TreeMap<String, Object> getScreenState() {
 		ChoiceScreenUtils.ChoiceType screenType = ChoiceScreenUtils.getCurrentChoiceType();
 		switch (screenType) {
 			case EVENT:
@@ -496,8 +447,6 @@ public class GameStateConverter {
 				return getMapScreenState();
 			case BOSS_REWARD:
 				return getBossRewardState();
-			case SHOP_SCREEN:
-				return getShopScreenState();
 			case GRID:
 				return getGridState();
 			case HAND_SELECT:
@@ -505,84 +454,69 @@ public class GameStateConverter {
 			case GAME_OVER:
 				return getGameOverState();
 		}
-		return new HashMap<>();
+		return new TreeMap<>();
 	}
 
-	/**
-	 * Gets the state of the current combat in game.
-	 * The combat state object contains:
-	 * "draw_pile" (list): The list of cards in your draw pile
-	 * "discard_pile" (list): The list of cards in your discard pile
-	 * "exhaust_pile" (list): The list of cards in your exhaust pile
-	 * "hand" (list): The list of cards in your hand
-	 * "limbo" (list): The list of cards that are in 'limbo', which is used for a variety of effects in game.
-	 * "card_in_play" (object, optional): The card that is currently in play, if any.
-	 * "player" (object): The state of the player
-	 * "monsters" (list): A list of the enemies in the combat, including dead enemies
-	 * "turn" (int): The current turn (or round) number of the combat.
-	 * "cards_discarded_this_turn" (int): The number of cards discarded this turn.
-	 * "times_damaged" (int): The number of times the player has been damaged this combat (for Blood for Blood).
-	 * Note: The order of the draw pile is not currently randomized when sent to the client.
-	 *
-	 * @return The combat state object
-	 */
-	private static HashMap<String, Object> getCombatState() {
-		HashMap<String, Object> state = new HashMap<>();
+	private static TreeMap<String, Object> getCombatState() {
+		TreeMap<String, Object> state = new TreeMap<>();
+
 		ArrayList<Object> monsters = new ArrayList<>();
 		for (AbstractMonster monster : AbstractDungeon.getCurrRoom().monsters.monsters) {
 			monsters.add(convertMonsterToJson(monster));
 		}
 		state.put("monsters", monsters);
+
 		ArrayList<Object> draw_pile = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.player.drawPile.group) {
-			draw_pile.add(convertCardToJson(card));
+			draw_pile.add(getCardName(card));
 		}
+		if (draw_pile.size() > 0) {
+			state.put("draw_pile", draw_pile);
+		}
+
 		ArrayList<Object> discard_pile = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.player.discardPile.group) {
-			discard_pile.add(convertCardToJson(card));
+			discard_pile.add(getCardName(card));
 		}
+		if (discard_pile.size() > 0) {
+			state.put("discard_pile", discard_pile);
+		}
+
 		ArrayList<Object> exhaust_pile = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.player.exhaustPile.group) {
-			exhaust_pile.add(convertCardToJson(card));
+			exhaust_pile.add(getCardName(card));
 		}
+		if (exhaust_pile.size() > 0) {
+			state.put("exhaust_pile", exhaust_pile);
+		}
+
 		ArrayList<Object> hand = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.player.hand.group) {
-			hand.add(convertCardToJson(card));
+			hand.add(getCardName(card));
 		}
+		if (hand.size() > 0) {
+			state.put("hand", hand);
+		}
+
 		ArrayList<Object> limbo = new ArrayList<>();
 		for (AbstractCard card : AbstractDungeon.player.limbo.group) {
-			limbo.add(convertCardToJson(card));
+			limbo.add(getCardName(card));
 		}
-		state.put("draw_pile", draw_pile);
-		state.put("discard_pile", discard_pile);
-		state.put("exhaust_pile", exhaust_pile);
-		state.put("hand", hand);
-		state.put("limbo", limbo);
-		if (AbstractDungeon.player.cardInUse != null) {
-			state.put("card_in_play", convertCardToJson(AbstractDungeon.player.cardInUse));
+		if (limbo.size() > 0) {
+			state.put("limbo", limbo);
 		}
+
 		state.put("player", convertPlayerToJson(AbstractDungeon.player));
-		state.put("turn", GameActionManager.turn);
-		state.put("cards_discarded_this_turn", GameActionManager.totalDiscardedThisTurn);
-		state.put("times_damaged", AbstractDungeon.player.damagedThisCombat);
 		return state;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the game map
-	 * The map object is a list of nodes, each of which with two extra fields:
-	 * "parents" (list): Not implemented
-	 * "children" (list): The nodes connected by an edge out of the node in question
-	 *
-	 * @return A list of node objects
-	 */
 	private static ArrayList<Object> convertMapToJson() {
 		ArrayList<ArrayList<MapRoomNode>> map = AbstractDungeon.map;
 		ArrayList<Object> jsonMap = new ArrayList<>();
 		for (ArrayList<MapRoomNode> layer : map) {
 			for (MapRoomNode node : layer) {
 				if (node.hasEdges()) {
-					HashMap<String, Object> json_node = convertMapRoomNodeToJson(node);
+					TreeMap<String, Object> json_node = convertMapRoomNodeToJson(node);
 					ArrayList<Object> json_children = new ArrayList<>();
 					ArrayList<Object> json_parents = new ArrayList<>();
 					for (MapEdge edge : node.getEdges()) {
@@ -602,161 +536,95 @@ public class GameStateConverter {
 		return jsonMap;
 	}
 
-	private static HashMap<String, Object> convertCoordinatesToJson(int x, int y) {
-		HashMap<String, Object> jsonNode = new HashMap<>();
+	private static TreeMap<String, Object> convertCoordinatesToJson(int x, int y) {
+		TreeMap<String, Object> jsonNode = new TreeMap<>();
 		jsonNode.put("x", x);
 		jsonNode.put("y", y);
 		return jsonNode;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given node
-	 * The node object contains:
-	 * "x" (int): The node's x coordinate
-	 * "y" (int): The node's y coordinate
-	 * "symbol" (string, optional): The map symbol for the node (?, $, T, M, E, R)
-	 * "children" (list, optional): The nodes connected by an edge out of the provided node
-	 * Note: children are added by convertMapToJson()
-	 *
-	 * @param node The node to convert
-	 * @return A node object
-	 */
-	public static HashMap<String, Object> convertMapRoomNodeToJson(MapRoomNode node) {
-		HashMap<String, Object> jsonNode = convertCoordinatesToJson(node.x, node.y);
+	public static TreeMap<String, Object> convertMapRoomNodeToJson(MapRoomNode node) {
+		TreeMap<String, Object> jsonNode = convertCoordinatesToJson(node.x, node.y);
 		jsonNode.put("symbol", node.getRoomSymbol(true));
 		return jsonNode;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given cards
-	 * The card object contains:
-	 * "name" (string): The name of the card, in the currently selected language
-	 * "uuid" (string): The unique identifier of the card
-	 * "misc" (int): The misc field for the card, used by cards like Ritual Dagger
-	 * "is_playable" (boolean): Whether the card can currently be played, though does not guarantee a target
-	 * "cost" (int): The current cost of the card. -2 is unplayable and -1 is X cost
-	 * "upgrades" (int): The number of times the card is upgraded
-	 * "id" (string): The id of the card
-	 * "type" (string): The name of the AbstractCard.CardType enum for the card
-	 * "rarity" (string): The name of the AbstractCard.CardRarity enum for the card
-	 * "has_target" (boolean): Whether the card requires a target to be played
-	 * "exhausts" (boolean): Whether the card exhausts when played
-	 * "ethereal" (boolean): Whether the card is ethereal
-	 *
-	 * @param card The card to convert
-	 * @return A card object
-	 */
-	public static HashMap<String, Object> convertCardToJson(AbstractCard card) {
-		HashMap<String, Object> jsonCard = new HashMap<>();
-		jsonCard.put("name", card.name);
-		jsonCard.put("uuid", card.uuid.toString());
-		if (card.misc != 0) {
-			jsonCard.put("misc", card.misc);
-		}
-		if (AbstractDungeon.getMonsters() != null) {
-			jsonCard.put("is_playable", card.canUse(AbstractDungeon.player, null));
-		}
-		jsonCard.put("cost", card.costForTurn);
-		jsonCard.put("upgrades", card.timesUpgraded);
-		jsonCard.put("id", card.cardID);
-		jsonCard.put("type", card.type.name());
-		jsonCard.put("rarity", card.rarity.name());
-		jsonCard.put("has_target", card.target == AbstractCard.CardTarget.SELF_AND_ENEMY || card.target == AbstractCard.CardTarget.ENEMY);
-		jsonCard.put("exhausts", card.exhaust);
-		jsonCard.put("ethereal", card.isEthereal);
-		return jsonCard;
+	public static TreeMap<String, Object> getBossRoomNodeJson() {
+		TreeMap<String, Object> jsonNode = convertCoordinatesToJson(3, AbstractDungeon.map.size()+1);
+		jsonNode.put("symbol", "B");
+		return jsonNode;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given monster
-	 * The monster object contains:
-	 * "name" (string): The monster's name, in the currently selected language
-	 * "id" (string): The monster's id
-	 * "current_hp" (int): The monster's current hp
-	 * "max_hp" (int): The monster's maximum hp
-	 * "block" (int): The monster's current block
-	 * "intent" (string): The name of the AbstractMonster.Intent enum for the monster's current intent
-	 * "move_id" (int): The move id byte for the monster's current move
-	 * "move_base_damage" (int): The base damage for the monster's current attack
-	 * "move_adjusted_damage" (int): The damage number actually shown on the intent for the monster's current attack
-	 * "move_hits" (int): The number of hits done by the current attack
-	 * "last_move_id" (int): The move id byte for the monster's previous move
-	 * "second_last_move_id" (int): The move id byte from 2 moves ago
-	 * "half_dead" (boolean): Whether the monster is half dead
-	 * "is_gone" (boolean): Whether the monster is dead or has run away
-	 * "powers" (list): The monster's current powers
-	 * Note: If the player has Runic Dome, intent will always return NONE
-	 *
-	 * @param monster The monster to convert
-	 * @return A monster object
-	 */
-	public static HashMap<String, Object> convertMonsterToJson(AbstractMonster monster) {
-		HashMap<String, Object> jsonMonster = new HashMap<>();
+	public static String getCardName(AbstractCard card) {
+		String name = card.name;
+		// if (card.upgraded) {
+		// 	name += "+";
+		// }
+		// if (card.timesUpgraded > 1) {
+		// 	name += Integer.toString(card.timesUpgraded);
+		// }
+		return name;
+	}
+
+	public static TreeMap<String, Object> convertMonsterToJson(AbstractMonster monster) {
+		TreeMap<String, Object> jsonMonster = new TreeMap<>();
 		jsonMonster.put("id", monster.id);
-		jsonMonster.put("name", monster.name);
-		jsonMonster.put("current_hp", monster.currentHealth);
-		jsonMonster.put("max_hp", monster.maxHealth);
+		jsonMonster.put("hp_current", monster.currentHealth);
+		jsonMonster.put("hp_max", monster.maxHealth);
 		if (AbstractDungeon.player.hasRelic(RunicDome.ID)) {
 			jsonMonster.put("intent", AbstractMonster.Intent.NONE);
 		} else {
 			jsonMonster.put("intent", monster.intent.name());
 			EnemyMoveInfo moveInfo = (EnemyMoveInfo) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "move");
 			if (moveInfo != null) {
-				jsonMonster.put("move_id", moveInfo.nextMove);
-				jsonMonster.put("move_base_damage", moveInfo.baseDamage);
-				int intentDmg = (int) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "intentDmg");
-				if (moveInfo.baseDamage > 0) {
-					jsonMonster.put("move_adjusted_damage", intentDmg);
-				} else {
-					jsonMonster.put("move_adjusted_damage", moveInfo.baseDamage);
+				int damage = (int) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "intentDmg");
+				if (damage > 0) {
+					jsonMonster.put("damage", damage);
 				}
-				int move_hits = moveInfo.multiplier;
-				// If isMultiDamage is not set, the multiplier is probably 0, but there is really 1 attack.
-				if (!moveInfo.isMultiDamage) {
-					move_hits = 1;
+				if (moveInfo.multiplier > 1) {
+					jsonMonster.put("hits", moveInfo.multiplier);
 				}
-				jsonMonster.put("move_hits", move_hits);
 			}
 		}
-		if (monster.moveHistory.size() >= 2) {
-			jsonMonster.put("last_move_id", monster.moveHistory.get(monster.moveHistory.size() - 2));
+		if (monster.isDeadOrEscaped()) {
+			jsonMonster.put("is_gone", true);
 		}
-		if (monster.moveHistory.size() >= 3) {
-			jsonMonster.put("second_last_move_id", monster.moveHistory.get(monster.moveHistory.size() - 3));
+		if (monster.halfDead) {
+			// Applies to monsters that can be "reborn", e.g. Darklings or Awakened One. Indicates they
+			// currently can't be attacked / won't attack.
+			jsonMonster.put("half_dead", true);
 		}
-		jsonMonster.put("half_dead", monster.halfDead);
-		jsonMonster.put("is_gone", monster.isDeadOrEscaped());
-		jsonMonster.put("block", monster.currentBlock);
-		jsonMonster.put("powers", convertCreaturePowersToJson(monster));
+		if (monster.currentBlock > 0) {
+			jsonMonster.put("block", monster.currentBlock);
+		}
+
+		ArrayList<Object> powers = convertCreaturePowersToJson(monster);
+		if (powers.size() > 0) {
+			jsonMonster.put("powers", powers);
+		}
+
 		return jsonMonster;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given player
-	 * The player object contains:
-	 * "max_hp" (int): The player's maximum hp
-	 * "current_hp" (int): The player's current hp
-	 * "block" (int): The player's current block
-	 * "powers" (list): The player's current powers
-	 * "energy" (int): The player's current energy
-	 * "orbs" (list): The player's current orb slots
-	 * Note: many other things, like draw pile and discard pile, are in the combat state
-	 *
-	 * @param player The player to convert
-	 * @return A player object
-	 */
-	private static HashMap<String, Object> convertPlayerToJson(AbstractPlayer player) {
-		HashMap<String, Object> jsonPlayer = new HashMap<>();
-		jsonPlayer.put("max_hp", player.maxHealth);
-		jsonPlayer.put("current_hp", player.currentHealth);
-		jsonPlayer.put("powers", convertCreaturePowersToJson(player));
+	private static TreeMap<String, Object> convertPlayerToJson(AbstractPlayer player) {
+		TreeMap<String, Object> jsonPlayer = new TreeMap<>();
+
+		ArrayList<Object> powers = convertCreaturePowersToJson(player);
+		if (powers.size() > 0) {
+			jsonPlayer.put("powers", powers);
+		}
 		jsonPlayer.put("energy", EnergyPanel.totalCount);
-		jsonPlayer.put("block", player.currentBlock);
+		if (player.currentBlock > 0) {
+			jsonPlayer.put("block", player.currentBlock);
+		}
 		ArrayList<Object> orbs = new ArrayList<>();
 		for (AbstractOrb orb : player.orbs) {
 			orbs.add(convertOrbToJson(orb));
 		}
-		jsonPlayer.put("orbs", orbs);
+		if (orbs.size() > 0) {
+			jsonPlayer.put("orbs", orbs);
+		}
+
 		return jsonPlayer;
 	}
 
@@ -783,135 +651,37 @@ public class GameStateConverter {
 		return null;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given creature's powers
-	 * The power object contains:
-	 * "id" (string): The id of the power
-	 * "name" (string): The name of the power, in the currently selected language
-	 * "amount" (int): The amount of the power
-	 * "damage" (int, optional): The amount of damage the power does, if applicable
-	 * "card" (object, optional): The card associated with the power (for powers like Nightmare)
-	 * "misc" (int, optional): Contains misc values that don't fit elsewhere (such as the base value for Flight)
-	 * "just_applied" (boolean, optional): Used with many powers to prevent them from expiring immediately
-	 *
-	 * @param creature The creature whose powers are to be converted
-	 * @return A list of power objects
-	 */
 	private static ArrayList<Object> convertCreaturePowersToJson(AbstractCreature creature) {
 		ArrayList<Object> powers = new ArrayList<>();
 		for (AbstractPower power : creature.powers) {
-			HashMap<String, Object> json_power = new HashMap<>();
+			TreeMap<String, Object> json_power = new TreeMap<>();
 			json_power.put("id", power.ID);
-			json_power.put("name", power.name);
 			json_power.put("amount", power.amount);
-			Object damage = getFieldIfExists(power, "damage");
-			if (damage != null) {
-				json_power.put("damage", (int) damage);
-			}
-			Object card = getFieldIfExists(power, "card");
-			if (card != null) {
-				json_power.put("card", convertCardToJson((AbstractCard) card));
-			}
-			String[] miscFieldNames = {
-				"basePower", "maxAmt", "storedAmount", "hpLoss", "cardsDoubledThisTurn"
-			};
-			// basePower gives the base power for Malleable
-			// maxAmt gives the max amount of damage per turn for Invincible
-			// storedAmount gives the number of stacks per turn for Flight
-			// hpLoss gives the amount of HP lost per turn with Combust
-			// cardsDoubledThisTurn gives the number of cards already doubled with Echo Form
-			Object misc = null;
-			for (String fieldName : miscFieldNames) {
-				misc = getFieldIfExists(power, fieldName);
-				if (misc != null) {
-					json_power.put("misc", (int) misc);
-					break;
-				}
-			}
-
-			String[] justAppliedNames = {
-				"justApplied", "skipFirst"
-			};
-			// justApplied is used with a variety of powers to prevent them from expiring immediately (cast from bool)
-			// skipFirst is the same as justApplied, for the Ritual power
-			Object justApplied = null;
-			for (String fieldName : justAppliedNames) {
-				justApplied = getFieldIfExists(power, fieldName);
-				if (justApplied != null) {
-					json_power.put("just_applied", (boolean) justApplied);
-					break;
-				}
-			}
 
 			powers.add(json_power);
 		}
 		return powers;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given relic
-	 * The relic object contains:
-	 * "id" (string): The id of the relic
-	 * "name" (string): The name of the relic, in the currently selected language
-	 * "counter" (int): The counter on the relic
-	 *
-	 * @param relic The relic to convert
-	 * @return A relic object
-	 */
-	private static HashMap<String, Object> convertRelicToJson(AbstractRelic relic) {
-		HashMap<String, Object> jsonRelic = new HashMap<>();
+	private static TreeMap<String, Object> convertRelicToJson(AbstractRelic relic) {
+		TreeMap<String, Object> jsonRelic = new TreeMap<>();
 		jsonRelic.put("id", relic.relicId);
-		jsonRelic.put("name", relic.name);
-		jsonRelic.put("counter", relic.counter);
+		if (relic.counter > -1) {
+			jsonRelic.put("counter", relic.counter);
+		}
 		return jsonRelic;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given potion
-	 * The potion object contains:
-	 * "id" (string): The id of the potion
-	 * "name" (string): The name of the potion, in the currently selected language
-	 * "can_use" (boolean): Whether the potion can currently be used
-	 * "can_discard" (boolean): Whether the potion can currently be discarded
-	 * "requires_target" (boolean): Whether the potion must be used with a target
-	 *
-	 * @param potion The potion to convert
-	 * @return A potion object
-	 */
-	public static HashMap<String, Object> convertPotionToJson(AbstractPotion potion) {
-		HashMap<String, Object> jsonPotion = new HashMap<>();
-		jsonPotion.put("id", potion.ID);
-		jsonPotion.put("name", potion.name);
-		jsonPotion.put("rarity", potion.rarity.name());
-		boolean canUse = potion.canUse();
-		boolean canDiscard = potion.canDiscard();
-		if (potion instanceof PotionSlot) {
-			canDiscard = canUse = false;
-		}
-		jsonPotion.put("can_use", canUse);
-		jsonPotion.put("can_discard", canDiscard);
-		jsonPotion.put("requires_target", potion.isThrown);
-		return jsonPotion;
+	public static String convertPotionToJson(AbstractPotion potion) {
+		return potion.ID;
 	}
 
-	/**
-	 * Creates a GSON-compatible representation of the given orb
-	 * The orb object contains:
-	 * "id" (string): The id of the orb
-	 * "name" (string): The name of the orb, in the currently selected language
-	 * "evoke_amount" (int): The evoke amount of the orb
-	 * "passive_amount" (int): The passive amount of the orb
-	 *
-	 * @param orb The orb to convert
-	 * @return An orb object
-	 */
-	private static HashMap<String, Object> convertOrbToJson(AbstractOrb orb) {
-		HashMap<String, Object> jsonOrb = new HashMap<>();
+	private static TreeMap<String, Object> convertOrbToJson(AbstractOrb orb) {
+		TreeMap<String, Object> jsonOrb = new TreeMap<>();
 		jsonOrb.put("id", orb.ID);
 		jsonOrb.put("name", orb.name);
 		jsonOrb.put("evoke_amount", orb.evokeAmount);
 		jsonOrb.put("passive_amount", orb.passiveAmount);
 		return jsonOrb;
 	}
-
 }
