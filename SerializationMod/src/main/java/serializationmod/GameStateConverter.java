@@ -25,6 +25,7 @@ import com.megacrit.cardcrawl.relics.RunicDome;
 import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rooms.*;
 import com.megacrit.cardcrawl.screens.GameOverScreen;
+import com.megacrit.cardcrawl.screens.GameOverStat;
 import com.megacrit.cardcrawl.screens.select.GridCardSelectScreen;
 import com.megacrit.cardcrawl.shop.ShopScreen;
 import com.megacrit.cardcrawl.shop.StorePotion;
@@ -112,6 +113,39 @@ public class GameStateConverter {
 		state.put("act", AbstractDungeon.actNum);
 		state.put("act_boss", AbstractDungeon.bossKey);
 		state.put("map", convertMapToJson());
+
+		Gson gson = new Gson();
+		return gson.toJson(state);
+	}
+
+	public static String getGameOverState() {
+		TreeMap<String, Object> state = new TreeMap<>();
+
+		state.put("_type", "state:game_over");
+
+		int totalScore = 0;
+		boolean victory = false;
+		ArrayList<GameOverStat> stats = new ArrayList<>();
+		if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.DEATH) {
+			totalScore = ReflectionHacks.getPrivate(AbstractDungeon.deathScreen, GameOverScreen.class, "score");
+			stats = ReflectionHacks.getPrivate(AbstractDungeon.deathScreen, GameOverScreen.class, "stats");
+			victory = GameOverScreen.isVictory;
+		} else if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.VICTORY) {
+			totalScore = ReflectionHacks.getPrivate(AbstractDungeon.victoryScreen, GameOverScreen.class, "score");
+			stats = ReflectionHacks.getPrivate(AbstractDungeon.victoryScreen, GameOverScreen.class, "stats");
+			victory = true;
+		}
+
+		TreeMap<String, Object> score = new TreeMap<>();
+		for (GameOverStat stat : stats) {
+			if (stat.label != null && stat.value != null && !stat.label.equals("Score")) {
+				score.put(stat.label, stat.value);
+			}
+		}
+		state.put("score", score);
+		state.put("total_score", totalScore);
+		state.put("victory", victory);
+
 
 		Gson gson = new Gson();
 		return gson.toJson(state);
@@ -415,22 +449,6 @@ public class GameStateConverter {
 		return state;
 	}
 
-	private static TreeMap<String, Object> getGameOverState() {
-		TreeMap<String, Object> state = new TreeMap<>();
-		int score = 0;
-		boolean victory = false;
-		if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.DEATH) {
-			score = (int) ReflectionHacks.getPrivate(AbstractDungeon.deathScreen, GameOverScreen.class, "score");
-			victory = GameOverScreen.isVictory;
-		} else if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.VICTORY) {
-			score = (int) ReflectionHacks.getPrivate(AbstractDungeon.victoryScreen, GameOverScreen.class, "score");
-			victory = true;
-		}
-		state.put("score", score);
-		state.put("victory", victory);
-		return state;
-	}
-
 	private static TreeMap<String, Object> getScreenState() {
 		ChoiceScreenUtils.ChoiceType screenType = ChoiceScreenUtils.getCurrentChoiceType();
 		switch (screenType) {
@@ -451,8 +469,6 @@ public class GameStateConverter {
 				return getGridState();
 			case HAND_SELECT:
 				return getHandSelectState();
-			case GAME_OVER:
-				return getGameOverState();
 		}
 		return new TreeMap<>();
 	}

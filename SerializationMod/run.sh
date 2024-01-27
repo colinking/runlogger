@@ -18,7 +18,6 @@ cp preferences/STSSaveSlots preferences/STSSaveSlots.backUp
 jq -r '.DEFAULT_SLOT |= "1"' preferences/STSSaveSlots.backUp > preferences/STSSaveSlots
 
 # SaveStateMod,stslib,LudicrousSpeed
-#SerializationMod
 MODS="basemod,superfastmode,SerializationMod"
 if [ ! -z "${1:-}" ]; then
   MODS="${MODS},$1"
