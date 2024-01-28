@@ -12,7 +12,7 @@ public class AbstractMonsterPatch {
 	public static class DiePatch {
 		public static void Postfix(AbstractMonster instance, boolean triggerRelics) {
 			// Speed up enemy deaths.
-			// instance.deathTimer = 0.0F;
+			// instance.deathTimer = 0.05F;
 		}
 	}
 }

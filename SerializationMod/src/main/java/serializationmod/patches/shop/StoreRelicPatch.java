@@ -1,11 +1,12 @@
-package serializationmod.patches;
+package serializationmod.patches.shop;
 
 import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
 import com.google.gson.Gson;
-import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
-import com.megacrit.cardcrawl.events.shrines.PurificationShrine;
+import com.megacrit.cardcrawl.rooms.ShopRoom;
+import com.megacrit.cardcrawl.shop.StoreRelic;
 import javassist.CannotCompileException;
 import javassist.CtBehavior;
 import serializationmod.GameStateConverter;
@@ -14,25 +15,23 @@ import serializationmod.SerializationMod;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
-public class PurificationShrinePatch {
+public class StoreRelicPatch {
 	@SpirePatch(
-		clz= PurificationShrine.class,
-		method="update"
+		clz= StoreRelic.class,
+		method="purchaseRelic"
 	)
-	public static class UpdatePatch {
+	public static class PurchaseRelicPatch {
 		@SpireInsertPatch(
 			locator= Locator.class
 		)
-		public static void Insert(PurificationShrine instance) {
+		public static void Insert(StoreRelic instance) {
 			SerializationMod.run.append(GameStateConverter.getFloorState());
 
 			TreeMap<String, Object> action = new TreeMap<>();
-			action.put("_type", "action:remove_cards");
-			ArrayList<String> cards = new ArrayList<>();
-			for (AbstractCard card : AbstractDungeon.gridSelectScreen.selectedCards) {
-				cards.add(GameStateConverter.getCardName(card));
-			}
-			action.put("cards", cards);
+			action.put("_type", "action:buy");
+			action.put("relic", instance.relic.name);
+			ShopRoom room = (ShopRoom) AbstractDungeon.getCurrRoom();
+			action.put("relic_index", room.relics.indexOf(instance.relic));
 
 			Gson gson = new Gson();
 			SerializationMod.run.append(gson.toJson(action));
@@ -40,7 +39,7 @@ public class PurificationShrinePatch {
 
 		private static class Locator extends SpireInsertLocator {
 			public int[] Locate(CtBehavior ctMethodToPatch) throws CannotCompileException, PatchingException {
-				Matcher matcher = new Matcher.MethodCallMatcher(PurificationShrine.class, "logMetricCardRemoval");
+				Matcher matcher = new Matcher.MethodCallMatcher(AbstractPlayer.class, "loseGold");
 				return LineFinder.findInOrder(ctMethodToPatch, new ArrayList<Matcher>(), matcher);
 			}
 		}

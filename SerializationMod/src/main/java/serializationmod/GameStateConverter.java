@@ -615,7 +615,9 @@ public class GameStateConverter {
 		}
 
 		ArrayList<Object> powers = convertCreaturePowersToJson(monster);
-		if (powers.size() > 0) {
+		// Powers do not clear immediately on death. There is a short delay (deathTimer) before they
+		// are removed from the monster.
+		if (!powers.isEmpty() && !monster.isDeadOrEscaped()) {
 			jsonMonster.put("powers", powers);
 		}
 

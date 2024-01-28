@@ -57,7 +57,7 @@ public class GameActionManagerPatch {
 
 					Gson gson = new Gson();
 					SerializationMod.run.append(gson.toJson(action));
-				} else {
+				} else if (!instance.cardQueue.get(0).autoplayCard && !instance.cardQueue.get(0).isEndTurnAutoPlay) {
 					SerializationMod.run.append(GameStateConverter.getFloorState());
 
 					// A card is getting played. Note if the first card in the queue is null, then the

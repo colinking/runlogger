@@ -24,6 +24,7 @@ public class SerializationMod implements PostInitializeSubscriber {
 	private static SpireConfig communicationConfig;
 	private static final String VERBOSE_OPTION = "verbose";
 	private static final boolean DEFAULT_VERBOSITY = false;
+	// private static boolean enableReplaySpeedups = true;
 
 	public static RunFile run;
 

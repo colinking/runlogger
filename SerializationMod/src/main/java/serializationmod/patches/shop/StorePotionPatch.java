@@ -1,12 +1,13 @@
-package serializationmod.patches;
+package serializationmod.patches.shop;
 
+import basemod.ReflectionHacks;
 import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
 import com.google.gson.Gson;
 import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
-import com.megacrit.cardcrawl.rooms.ShopRoom;
-import com.megacrit.cardcrawl.shop.StoreRelic;
+import com.megacrit.cardcrawl.shop.ShopScreen;
+import com.megacrit.cardcrawl.shop.StorePotion;
 import javassist.CannotCompileException;
 import javassist.CtBehavior;
 import serializationmod.GameStateConverter;
@@ -15,23 +16,23 @@ import serializationmod.SerializationMod;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
-public class StoreRelicPatch {
+public class StorePotionPatch {
 	@SpirePatch(
-		clz= StoreRelic.class,
-		method="purchaseRelic"
+		clz= StorePotion.class,
+		method="purchasePotion"
 	)
 	public static class PurchaseRelicPatch {
 		@SpireInsertPatch(
 			locator= Locator.class
 		)
-		public static void Insert(StoreRelic instance) {
+		public static void Insert(StorePotion instance) {
 			SerializationMod.run.append(GameStateConverter.getFloorState());
 
 			TreeMap<String, Object> action = new TreeMap<>();
 			action.put("_type", "action:buy");
-			action.put("relic", instance.relic.name);
-			ShopRoom room = (ShopRoom) AbstractDungeon.getCurrRoom();
-			action.put("relic_index", room.relics.indexOf(instance.relic));
+			action.put("potion", instance.potion.name);
+			ArrayList<StorePotion> potions = ReflectionHacks.getPrivate(AbstractDungeon.shopScreen, ShopScreen.class, "potions");
+			action.put("potion_index", potions.indexOf(instance));
 
 			Gson gson = new Gson();
 			SerializationMod.run.append(gson.toJson(action));

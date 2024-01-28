@@ -33,7 +33,7 @@ public class DiscardActionPatch {
 			}
 
 			TreeMap<String, Object> action = new TreeMap<>();
-			action.put("_type", "action:discard_card");
+			action.put("_type", "action:discard_cards");
 			ArrayList<String> cards = new ArrayList<>();
 			for (AbstractCard card : AbstractDungeon.handCardSelectScreen.selectedCards.group) {
 				cards.add(GameStateConverter.getCardName(card));

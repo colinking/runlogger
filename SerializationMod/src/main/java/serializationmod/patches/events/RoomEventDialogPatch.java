@@ -1,4 +1,4 @@
-package serializationmod.patches;
+package serializationmod.patches.events;
 
 import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
