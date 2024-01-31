@@ -25,11 +25,9 @@ public class RewardItemPatch {
 			// The linked reward (e.g. sapphire key or relic) was selected instead.
 			return;
 		}
-		if (instance.type == RewardItem.RewardType.POTION) {
-			if (AbstractDungeon.player.hasRelic("Sozu")) {
-				// The player cannot acquire this potion.
-				return;
-			}
+		// If the player does not have any open potion slots, claimReward is a no-op.
+		// Unless the user has Sozu, in which case the reward disappears.
+		if (instance.type == RewardItem.RewardType.POTION && !AbstractDungeon.player.hasRelic("Sozu")) {
 			boolean hasOpenSlots = false;
 			for (AbstractPotion potion : AbstractDungeon.player.potions) {
 				if (potion instanceof PotionSlot) {
