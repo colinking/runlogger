@@ -21,6 +21,10 @@ public class RewardItemPatch {
 			// Selecting a card does not impact the state of the game.
 			return;
 		}
+		if (instance.ignoreReward) {
+			// The linked reward (e.g. sapphire key or relic) was selected instead.
+			return;
+		}
 		if (instance.type == RewardItem.RewardType.POTION) {
 			if (AbstractDungeon.player.hasRelic("Sozu")) {
 				// The player cannot acquire this potion.
@@ -44,6 +48,7 @@ public class RewardItemPatch {
 		TreeMap<String, Object> action = new TreeMap<>();
 		action.put("_type", "action:select_reward");
 		action.put("reward", instance.type.name());
+		action.put("reward_index", AbstractDungeon.combatRewardScreen.rewards.indexOf(instance));
 
 		Gson gson = new Gson();
 		SerializationMod.run.append(gson.toJson(action));

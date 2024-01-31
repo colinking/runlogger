@@ -6,11 +6,11 @@ import serializationmod.GameStateConverter;
 import serializationmod.SerializationMod;
 
 public class VictoryScreenPatch {
-	@SpirePatch(clz = VictoryScreen.class, method = "updateAscensionAndBetaArtProgress")
-	public static class UpdateAscensionAndBetaArtProgressPatch {
-		public static void Prefix(VictoryScreen instance) {
+	@SpirePatch(clz = VictoryScreen.class, method = SpirePatch.CONSTRUCTOR)
+	public static class ConstructorPatch {
+		public static void Postfix(VictoryScreen instance) {
 			// Print final time upon victory.
-			SerializationMod.run.append(GameStateConverter.getGameOverState());
+			SerializationMod.run.append(GameStateConverter.getGameOverState(instance));
 		}
 	}
 }

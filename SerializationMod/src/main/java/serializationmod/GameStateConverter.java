@@ -5,11 +5,14 @@ import com.evacipated.cardcrawl.modthespire.Loader;
 import com.evacipated.cardcrawl.modthespire.ModInfo;
 import com.google.gson.Gson;
 import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.cards.red.IronWave;
 import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.core.AbstractCreature;
+import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.events.AbstractEvent;
+import com.megacrit.cardcrawl.helpers.CardLibrary;
 import com.megacrit.cardcrawl.helpers.SeedHelper;
 import com.megacrit.cardcrawl.map.MapEdge;
 import com.megacrit.cardcrawl.map.MapRoomNode;
@@ -36,6 +39,7 @@ import com.megacrit.cardcrawl.unlock.UnlockTracker;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.TreeMap;
 
 public class GameStateConverter {
@@ -49,17 +53,26 @@ public class GameStateConverter {
 
 		state.put("seed", SeedHelper.getString(Settings.seed));
 		state.put("class", AbstractDungeon.player.chosenClass.name());
+
 		TreeMap<String, Object> unlocks = new TreeMap<>();
 		for (AbstractPlayer.PlayerClass cls : AbstractPlayer.PlayerClass.values()) {
 			unlocks.put(cls.name(), UnlockTracker.getUnlockLevel(cls));
 		}
 		unlocks.put("final_act", Settings.isFinalActAvailable);
+		int maxAscensionLevel = 0;
+		if (AbstractDungeon.player.getPrefs().getInteger("WIN_COUNT", 0) > 0) {
+			maxAscensionLevel = AbstractDungeon.player.getPrefs().getInteger("ASCENSION_LEVEL", 1);
+		}
+		unlocks.put("ascension", maxAscensionLevel);
 		state.put("unlocks", unlocks);
-		state.put("ascension_level", AbstractDungeon.ascensionLevel);
+
+		state.put("ascension", AbstractDungeon.ascensionLevel);
+
 		TreeMap<String, Boolean> bossesSeen = new TreeMap<>();
 		for (String boss : UnlockTracker.bossSeenPref.get().keySet()) {
 			bossesSeen.put(boss, UnlockTracker.isBossSeen(boss));
 		}
+
 		state.put("bosses_seen", bossesSeen);
 
 		TreeMap<String, String> versions = new TreeMap<>();
@@ -86,6 +99,11 @@ public class GameStateConverter {
 		if (Settings.isDemo) {
 			state.put("demo", true);
 		}
+		if (Settings.isTrial) {
+			state.put("trial", true);
+		}
+
+		state.put("note_for_yourself_card", getNoteForYourselfCard());
 
 		Gson gson = new Gson();
 		return gson.toJson(state);
@@ -118,24 +136,15 @@ public class GameStateConverter {
 		return gson.toJson(state);
 	}
 
-	public static String getGameOverState() {
+	public static String getGameOverState(GameOverScreen screen) {
 		TreeMap<String, Object> state = new TreeMap<>();
 
 		state.put("_type", "state:game_over");
 
-		int totalScore = 0;
-		boolean victory = false;
-		ArrayList<GameOverStat> stats = new ArrayList<>();
-		if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.DEATH) {
-			totalScore = ReflectionHacks.getPrivate(AbstractDungeon.deathScreen, GameOverScreen.class, "score");
-			stats = ReflectionHacks.getPrivate(AbstractDungeon.deathScreen, GameOverScreen.class, "stats");
-			victory = GameOverScreen.isVictory;
-		} else if (AbstractDungeon.screen == AbstractDungeon.CurrentScreen.VICTORY) {
-			totalScore = ReflectionHacks.getPrivate(AbstractDungeon.victoryScreen, GameOverScreen.class, "score");
-			stats = ReflectionHacks.getPrivate(AbstractDungeon.victoryScreen, GameOverScreen.class, "stats");
-			victory = true;
-		}
+		state.put("total_score", ReflectionHacks.getPrivate(screen, GameOverScreen.class, "score"));
+		state.put("victory", GameOverScreen.isVictory);
 
+		ArrayList<GameOverStat> stats = ReflectionHacks.getPrivate(screen, GameOverScreen.class, "stats");
 		TreeMap<String, Object> score = new TreeMap<>();
 		for (GameOverStat stat : stats) {
 			if (stat.label != null && stat.value != null && !stat.label.equals("Score")) {
@@ -143,9 +152,6 @@ public class GameStateConverter {
 			}
 		}
 		state.put("score", score);
-		state.put("total_score", totalScore);
-		state.put("victory", victory);
-
 
 		Gson gson = new Gson();
 		return gson.toJson(state);
@@ -159,10 +165,13 @@ public class GameStateConverter {
 
 		state.put("_type", "state:floor");
 
-		// TODO: make easier to read by diffing against previous state
-
 		state.put("floor", AbstractDungeon.floorNum);
-		state.put("room_type", AbstractDungeon.getCurrRoom().getClass().getSimpleName());
+		String roomType = AbstractDungeon.getCurrRoom().getClass().getSimpleName();
+		state.put("room_type", roomType);
+		if (roomType.equals("EventRoom")) {
+			AbstractEvent event = AbstractDungeon.getCurrRoom().event;
+			state.put("event_name", ReflectionHacks.getPrivateStatic(event.getClass(), "NAME"));
+		}
 
 		state.put("hp_current", AbstractDungeon.player.currentHealth);
 		state.put("hp_max", AbstractDungeon.player.maxHealth);
@@ -183,7 +192,7 @@ public class GameStateConverter {
 
 		ArrayList<Object> potions = new ArrayList<>();
 		for (AbstractPotion potion : AbstractDungeon.player.potions) {
-			if (potion.ID == "Potion Slot") {
+			if (potion.ID.equals("Potion Slot")) {
 				potions.add(null);
 			} else {
 				potions.add(convertPotionToJson(potion));
@@ -210,12 +219,36 @@ public class GameStateConverter {
 		if (Settings.hasSapphireKey) {
 			keys.put("sapphire", true);
 		}
-		if (keys.size() > 0) {
+		if (!keys.isEmpty()) {
 			state.put("keys", keys);
 		}
 
+		if (!AbstractDungeon.combatRewardScreen.rewards.isEmpty()) {
+			state.put("rewards", getRewardState());
+		}
+
+		state.put("seeds", getSeedState());
+
 		Gson gson = new Gson();
 		return gson.toJson(state);
+	}
+
+	// Useful for debugging
+	private static HashMap<String, Object> getSeedState() {
+		HashMap<String, Object> state = new HashMap<>();
+		state.put("monster", AbstractDungeon.monsterRng.counter);
+		state.put("map", AbstractDungeon.mapRng.counter);
+		state.put("event", AbstractDungeon.eventRng.counter);
+		state.put("card", AbstractDungeon.cardRng.counter);
+		state.put("treasure", AbstractDungeon.treasureRng.counter);
+		state.put("relic", AbstractDungeon.relicRng.counter);
+		state.put("potion", AbstractDungeon.potionRng.counter);
+		state.put("monster_hp", AbstractDungeon.monsterHpRng.counter);
+		state.put("ai", AbstractDungeon.aiRng.counter);
+		state.put("shuffle", AbstractDungeon.shuffleRng.counter);
+		state.put("card_random", AbstractDungeon.cardRandomRng.counter);
+		state.put("misc", AbstractDungeon.miscRng.counter);
+		return state;
 	}
 
 	private static TreeMap<String, Object> getRoomState() {
@@ -309,14 +342,12 @@ public class GameStateConverter {
 		return state;
 	}
 
-	private static TreeMap<String, Object> getCombatRewardState() {
-		TreeMap<String, Object> state = new TreeMap<>();
+	private static ArrayList<Object> getRewardState() {
 		ArrayList<Object> rewards = new ArrayList<>();
 		for (RewardItem reward : AbstractDungeon.combatRewardScreen.rewards) {
 			rewards.add(GameStateConverter.convertRewardToJson(reward));
 		}
-		state.put("rewards", rewards);
-		return state;
+		return rewards;
 	}
 
 	public static TreeMap<String, Object> convertRewardToJson(RewardItem reward) {
@@ -335,12 +366,14 @@ public class GameStateConverter {
 				break;
 			case SAPPHIRE_KEY:
 				jsonReward.put("link", convertRelicToJson(reward.relicLink.relic));
+				break;
 			case CARD:
 				ArrayList<String> cards = new ArrayList<>();
 				for (AbstractCard card : reward.cards) {
 					cards.add(GameStateConverter.getCardName(card));
 				}
 				jsonReward.put("cards", cards);
+				break;
 		}
 		return jsonReward;
 	}
@@ -355,7 +388,9 @@ public class GameStateConverter {
 			nextNodesJson.add(convertMapRoomNodeToJson(node));
 		}
 		if (ChoiceScreenUtils.bossNodeAvailable()) {
-			nextNodesJson.add(getBossRoomNodeJson());
+			TreeMap<String, Object> boss = getBossRoomCoordinates();
+			boss.put("symbol", "B");
+			nextNodesJson.add(boss);
 		}
 		state.put("next_nodes", nextNodesJson);
 		return state;
@@ -459,8 +494,6 @@ public class GameStateConverter {
 				return getRoomState();
 			case CARD_REWARD:
 				return getCardRewardState();
-			case COMBAT_REWARD:
-				return getCombatRewardState();
 			case MAP:
 				return getMapScreenState();
 			case BOSS_REWARD:
@@ -549,6 +582,7 @@ public class GameStateConverter {
 				}
 			}
 		}
+
 		return jsonMap;
 	}
 
@@ -565,10 +599,13 @@ public class GameStateConverter {
 		return jsonNode;
 	}
 
-	public static TreeMap<String, Object> getBossRoomNodeJson() {
-		TreeMap<String, Object> jsonNode = convertCoordinatesToJson(3, AbstractDungeon.map.size()+1);
-		jsonNode.put("symbol", "B");
-		return jsonNode;
+	public static TreeMap<String, Object> getBossRoomCoordinates() {
+		// The y-coordinate matches the edge that STS creates when generating the dungeon map.
+		int y = 16;
+		if (AbstractDungeon.id.equals("TheEnding")) {
+			y = 3;
+		}
+		return convertCoordinatesToJson(3, y);
 	}
 
 	public static String getCardName(AbstractCard card) {
@@ -587,38 +624,37 @@ public class GameStateConverter {
 		jsonMonster.put("id", monster.id);
 		jsonMonster.put("hp_current", monster.currentHealth);
 		jsonMonster.put("hp_max", monster.maxHealth);
-		if (AbstractDungeon.player.hasRelic(RunicDome.ID)) {
-			jsonMonster.put("intent", AbstractMonster.Intent.NONE);
-		} else {
-			jsonMonster.put("intent", monster.intent.name());
-			EnemyMoveInfo moveInfo = (EnemyMoveInfo) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "move");
-			if (moveInfo != null) {
-				int damage = (int) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "intentDmg");
-				if (damage > 0) {
-					jsonMonster.put("damage", damage);
-				}
-				if (moveInfo.multiplier > 1) {
-					jsonMonster.put("hits", moveInfo.multiplier);
-				}
-			}
-		}
 		if (monster.isDeadOrEscaped()) {
 			jsonMonster.put("is_gone", true);
-		}
-		if (monster.halfDead) {
-			// Applies to monsters that can be "reborn", e.g. Darklings or Awakened One. Indicates they
-			// currently can't be attacked / won't attack.
-			jsonMonster.put("half_dead", true);
-		}
-		if (monster.currentBlock > 0) {
-			jsonMonster.put("block", monster.currentBlock);
-		}
+		} else {
+			if (AbstractDungeon.player.hasRelic(RunicDome.ID)) {
+				jsonMonster.put("intent", AbstractMonster.Intent.NONE);
+			} else {
+				jsonMonster.put("intent", monster.intent.name());
+				EnemyMoveInfo moveInfo = (EnemyMoveInfo) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "move");
+				if (moveInfo != null) {
+					int damage = (int) ReflectionHacks.getPrivate(monster, AbstractMonster.class, "intentDmg");
+					if (damage > 0) {
+						jsonMonster.put("damage", damage);
+					}
+					if (moveInfo.multiplier > 1) {
+						jsonMonster.put("hits", moveInfo.multiplier);
+					}
+				}
+			}
+			if (monster.halfDead) {
+				// Applies to monsters that can be "reborn", e.g. Darklings or Awakened One. Indicates they
+				// currently can't be attacked / won't attack.
+				jsonMonster.put("half_dead", true);
+			}
+			if (monster.currentBlock > 0) {
+				jsonMonster.put("block", monster.currentBlock);
+			}
 
-		ArrayList<Object> powers = convertCreaturePowersToJson(monster);
-		// Powers do not clear immediately on death. There is a short delay (deathTimer) before they
-		// are removed from the monster.
-		if (!powers.isEmpty() && !monster.isDeadOrEscaped()) {
-			jsonMonster.put("powers", powers);
+			ArrayList<Object> powers = convertCreaturePowersToJson(monster);
+			if (!powers.isEmpty()) {
+				jsonMonster.put("powers", powers);
+			}
 		}
 
 		return jsonMonster;
@@ -641,6 +677,10 @@ public class GameStateConverter {
 		}
 		if (orbs.size() > 0) {
 			jsonPlayer.put("orbs", orbs);
+		}
+		// Whether the player is facing backwards (only relevant in shield + spear).
+		if (player.flipHorizontal) {
+			jsonPlayer.put("flipped", true);
 		}
 
 		return jsonPlayer;
@@ -701,5 +741,18 @@ public class GameStateConverter {
 		jsonOrb.put("evoke_amount", orb.evokeAmount);
 		jsonOrb.put("passive_amount", orb.passiveAmount);
 		return jsonOrb;
+	}
+
+	private static String getNoteForYourselfCard() {
+		AbstractCard card = CardLibrary.getCard(CardCrawlGame.playerPref.getString("NOTE_CARD", "Iron Wave"));
+		if (card == null) {
+			card = new IronWave();
+		} else {
+			card = card.makeCopy();
+		}
+		for(int i = 0; i < CardCrawlGame.playerPref.getInteger("NOTE_UPGRADE", 0); ++i) {
+			card.upgrade();
+		}
+		return getCardName(card);
 	}
 }

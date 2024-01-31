@@ -4,9 +4,11 @@ import basemod.BaseMod;
 import basemod.ModLabeledToggleButton;
 import basemod.ModPanel;
 import basemod.interfaces.PostInitializeSubscriber;
+import basemod.interfaces.StartGameSubscriber;
 import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.core.Settings;
+import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.helpers.FontHelper;
 import com.megacrit.cardcrawl.helpers.ImageMaster;
 import org.apache.logging.log4j.LogManager;
@@ -16,7 +18,7 @@ import java.io.IOException;
 import java.util.Properties;
 
 @SpireInitializer
-public class SerializationMod implements PostInitializeSubscriber {
+public class SerializationMod implements PostInitializeSubscriber, StartGameSubscriber {
 	public static final Logger logger = LogManager.getLogger(SerializationMod.class.getName());
 	private static final String MODNAME = "Serialization Mod";
 	private static final String AUTHOR = "Colin King";
@@ -76,5 +78,11 @@ public class SerializationMod implements PostInitializeSubscriber {
 			return DEFAULT_VERBOSITY;
 		}
 		return communicationConfig.getBool(VERBOSE_OPTION);
+	}
+
+	@Override
+	public void receiveStartGame() {
+		SerializationMod.run = new RunFile(Settings.seed, AbstractDungeon.player.chosenClass);
+		// 	TODO: implement continuing
 	}
 }

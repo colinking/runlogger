@@ -20,6 +20,33 @@ public class GridCardSelectScreenPatch {
 		clz= GridCardSelectScreen.class,
 		method="update"
 	)
+	public static class ConfirmationGridPatch {
+		@SpireInsertPatch(
+			locator= Locator.class
+		)
+		public static void Insert(GridCardSelectScreen instance) {
+			SerializationMod.run.append(GameStateConverter.getFloorState());
+
+			TreeMap<String, Object> action = new TreeMap<>();
+			action.put("_type", "action:confirm_cards");
+
+			Gson gson = new Gson();
+			SerializationMod.run.append(gson.toJson(action));
+		}
+
+		private static class Locator extends SpireInsertLocator {
+			public int[] Locate(CtBehavior ctMethodToPatch) throws CannotCompileException, PatchingException {
+				Matcher matcher = new Matcher.MethodCallMatcher(AbstractDungeon.class, "closeCurrentScreen");
+				// The first instance is for `isJustForConfirming` (e.g. Pandora's Box).
+				return LineFinder.findInOrder(ctMethodToPatch, new ArrayList<Matcher>(), matcher);
+			}
+		}
+	}
+
+	@SpirePatch(
+		clz= GridCardSelectScreen.class,
+		method="update"
+	)
 	public static class UpdatePatch {
 		@SpireInsertPatch(
 			locator= Locator.class

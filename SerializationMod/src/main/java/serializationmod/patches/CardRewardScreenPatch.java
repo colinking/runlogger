@@ -5,6 +5,7 @@ import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
 import com.google.gson.Gson;
 import com.megacrit.cardcrawl.cards.AbstractCard;
+import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.screens.CardRewardScreen;
 import com.megacrit.cardcrawl.ui.buttons.SkipCardButton;
 import javassist.CannotCompileException;
@@ -42,9 +43,13 @@ public class CardRewardScreenPatch {
 				// Note: these are not "cards"; this is wish/stance potion
 				action.put("card_kind", "special");
 			} else {
-				action.put("card_kind", "combat_reward");
+				// Combat rewards, event rewards, etc.
+				action.put("card_kind", "reward");
 			}
 
+			if (!AbstractDungeon.combatRewardScreen.rewards.isEmpty() && instance.rItem != null) {
+				action.put("reward_index", AbstractDungeon.combatRewardScreen.rewards.indexOf(instance.rItem));
+			}
 
 			action.put("card", GameStateConverter.getCardName(hoveredCard));
 			int cardIndex = -1;
@@ -55,8 +60,6 @@ public class CardRewardScreenPatch {
 				}
 			}
 			action.put("card_index", cardIndex);
-
-			// TODO: indicate which combat card reward this is, if there are multiple (prayer wheel)
 
 			Gson gson = new Gson();
 			SerializationMod.run.append(gson.toJson(action));

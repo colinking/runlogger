@@ -12,7 +12,20 @@ import java.util.TreeMap;
 
 @SuppressWarnings("unused")
 public class GameActionManagerPatch {
-	public static boolean performedActions = false;
+	private static boolean performedActions = false;
+	private static boolean autoEndTurn = false;
+
+	@SpirePatch(
+		clz = GameActionManager.class,
+		method = "callEndTurnEarlySequence"
+	)
+	public static class CallEndTurnEarlySequencePatch {
+		public static void Prefix(GameActionManager instance) {
+			// The turn is ending automatically (e.g. Meditate or Timeeater). Ignore
+			// the next end turn action.
+			autoEndTurn = true;
+		}
+	}
 
 	@SpirePatch(
 		clz= GameActionManager.class,
@@ -49,14 +62,18 @@ public class GameActionManagerPatch {
 
 			if (instance.cardQueue.size() > 0) {
 				if (instance.cardQueue.get(0).card == null) {
-					SerializationMod.run.append(GameStateConverter.getFloorState());
+					if (autoEndTurn) {
+						autoEndTurn = false;
+					} else {
+						SerializationMod.run.append(GameStateConverter.getFloorState());
 
-					// 	The turn is ending.
-					TreeMap<String, Object> action = new TreeMap<>();
-					action.put("_type", "action:end_turn");
+						// 	The turn is ending.
+						TreeMap<String, Object> action = new TreeMap<>();
+						action.put("_type", "action:end_turn");
 
-					Gson gson = new Gson();
-					SerializationMod.run.append(gson.toJson(action));
+						Gson gson = new Gson();
+						SerializationMod.run.append(gson.toJson(action));
+					}
 				} else if (!instance.cardQueue.get(0).autoplayCard && !instance.cardQueue.get(0).isEndTurnAutoPlay) {
 					SerializationMod.run.append(GameStateConverter.getFloorState());
 

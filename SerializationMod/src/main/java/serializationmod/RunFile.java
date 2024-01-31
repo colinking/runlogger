@@ -14,7 +14,6 @@ public class RunFile {
 	private final Long seed;
 	private final String fileName;
 	private final AbstractPlayer.PlayerClass character;
-	// TODO: does this need a mutex?
 
 	public RunFile(Long seed, AbstractPlayer.PlayerClass character) {
 		this.seed = seed;
@@ -23,7 +22,6 @@ public class RunFile {
 	}
 
 	private java.nio.file.Path getPath() {
-		// TODO: figure out where to put these run files
 		String name = character.name().toLowerCase();
 		return Paths.get("/users/colin/Downloads/"+ name + "_" + this.fileName + ".json");
 	}

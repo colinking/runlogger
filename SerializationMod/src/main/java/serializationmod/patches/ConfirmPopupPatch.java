@@ -26,8 +26,6 @@ public class ConfirmPopupPatch {
 
 			Gson gson = new Gson();
 			SerializationMod.run.append(gson.toJson(action));
-
-			// 	TODO: print state once more once fully dead
 		}
 	}
 }

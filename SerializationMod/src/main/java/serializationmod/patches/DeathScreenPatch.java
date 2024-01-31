@@ -6,11 +6,11 @@ import serializationmod.GameStateConverter;
 import serializationmod.SerializationMod;
 
 public class DeathScreenPatch {
-	@SpirePatch(clz = DeathScreen.class, method = "updateAscensionProgress")
-	public static class UpdateAscensionProgressPatch {
-		public static void Prefix(DeathScreen instance) {
+	@SpirePatch(clz = DeathScreen.class, method = SpirePatch.CONSTRUCTOR)
+	public static class ConstructorPatch {
+		public static void Postfix(DeathScreen instance) {
 			// Print final time upon death.
-			SerializationMod.run.append(GameStateConverter.getGameOverState());
+			SerializationMod.run.append(GameStateConverter.getGameOverState(instance));
 		}
 	}
 }

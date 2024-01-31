@@ -46,6 +46,13 @@
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
+        <dependency>
+            <groupId>skrelpoid.superfastmode</groupId>
+            <artifactId>SuperFastMode</artifactId>
+            <version>1.0.9</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/../lib/SuperFastMode.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>
