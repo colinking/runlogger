@@ -1,9 +1,6 @@
 package serializationmod;
 
 import com.megacrit.cardcrawl.characters.AbstractPlayer;
-import com.megacrit.cardcrawl.core.Settings;
-import com.megacrit.cardcrawl.random.Random;
-import serializationmod.patches.DeterministicRNGPatch;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,23 +17,10 @@ public class RunFile {
 	private final String fileName;
 	private final AbstractPlayer.PlayerClass character;
 
-	// See: DeterministicRNGPatch
-	public Random deterministicTransformRNG;
-	public DeterministicRNGPatch.DiscoveryCache discoveryCache;
-
 	public RunFile(Long seed, AbstractPlayer.PlayerClass character) {
 		this.seed = seed;
 		this.fileName = Long.toString(System.currentTimeMillis() / 1000L);
 		this.character = character;
-
-		// TODO: reset on continue
-		// We use the same approach as RNGFix to avoid correlated randomness.
-		Random gen = new Random(Settings.seed);
-		// To avoid correlating w/ RNGFix, we use a different gen RNG.
-		Random gen2 = new Random(gen.random.nextLong());
-		this.deterministicTransformRNG = new Random(gen2.random.nextLong());
-
-		this.discoveryCache = new DeterministicRNGPatch.DiscoveryCache();
 	}
 
 	private java.nio.file.Path getPath() {

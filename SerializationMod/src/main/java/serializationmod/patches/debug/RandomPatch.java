@@ -90,9 +90,6 @@ public class RandomPatch {
 		if (instance == NeowEvent.rng) {
 			return "neowRng";
 		}
-		if (instance == SerializationMod.run.deterministicTransformRNG) {
-			return "trulyRandomRNG";
-		}
 
 		// usually occurs when an RNG is temporarily duplicated (e.g. to check for combat for juzu bracelet)
 		return "<unknown rng>";
