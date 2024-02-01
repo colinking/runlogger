@@ -49,7 +49,8 @@ public class DeterministicRNGPatch {
 	@SpirePatch(clz = DiscoveryAction.class, method="generateColorlessCardChoices")
 	public static class DiscoveryColorlessPatch {
 		public static SpireReturn<ArrayList<AbstractCard>> Prefix(DiscoveryAction instance) {
-			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, null);
+			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, null, true);
+			SerializationMod.run.debugLog("generateColorlessCardChoices prefix " + Boolean.toString(cards != null));
 			if (cards != null) {
 				// Return the cached cards.
 				return SpireReturn.Return(cards);
@@ -59,10 +60,11 @@ public class DeterministicRNGPatch {
 		}
 
 		public static ArrayList<AbstractCard> Postfix(ArrayList<AbstractCard> returnValue, DiscoveryAction instance) {
-			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, null);
+			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, null, true);
+			SerializationMod.run.debugLog("generateColorlessCardChoices postfix " + Boolean.toString(cards == null));
 			if (cards == null) {
 				// Cache these results.
-				SerializationMod.run.discoveryCache.set(instance, null, returnValue);
+				SerializationMod.run.discoveryCache.set(instance, null, true, returnValue);
 			}
 			return returnValue;
 		}
@@ -71,7 +73,8 @@ public class DeterministicRNGPatch {
 	@SpirePatch(clz = DiscoveryAction.class, method="generateCardChoices", paramtypez = {AbstractCard.CardType.class})
 	public static class DiscoveryCardTypePatch {
 		public static SpireReturn<ArrayList<AbstractCard>> Prefix(DiscoveryAction instance, AbstractCard.CardType type) {
-			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, type);
+			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, type, false);
+			SerializationMod.run.debugLog("generateCardChoices prefix " + Boolean.toString(cards != null));
 			if (cards != null) {
 				// Return the cached cards.
 				return SpireReturn.Return(cards);
@@ -81,10 +84,11 @@ public class DeterministicRNGPatch {
 		}
 
 		public static ArrayList<AbstractCard> Postfix(ArrayList<AbstractCard> returnValue, DiscoveryAction instance, AbstractCard.CardType type) {
-			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, type);
+			ArrayList<AbstractCard> cards = SerializationMod.run.discoveryCache.get(instance, type, false);
+			SerializationMod.run.debugLog("generateCardChoices postfix " + Boolean.toString(cards == null));
 			if (cards == null) {
 				// Cache these results.
-				SerializationMod.run.discoveryCache.set(instance, null, returnValue);
+				SerializationMod.run.discoveryCache.set(instance, type, false, returnValue);
 			}
 			return returnValue;
 		}
@@ -96,11 +100,13 @@ public class DeterministicRNGPatch {
 		private static class CacheResult {
 			public DiscoveryAction action;
 			public AbstractCard.CardType type;
+			public boolean colorless;
 			public ArrayList<AbstractCard> cards;
 
-			public CacheResult(DiscoveryAction action, AbstractCard.CardType type, ArrayList<AbstractCard> cards) {
+			public CacheResult(DiscoveryAction action, AbstractCard.CardType type, boolean colorless, ArrayList<AbstractCard> cards) {
 				this.action = action;
 				this.type = type;
+				this.colorless = colorless;
 				this.cards = cards;
 			}
 		}
@@ -109,23 +115,23 @@ public class DeterministicRNGPatch {
 			this.elements = new ArrayList<>();
 		}
 
-		public ArrayList<AbstractCard> get(DiscoveryAction action, AbstractCard.CardType type) {
+		public ArrayList<AbstractCard> get(DiscoveryAction action, AbstractCard.CardType type, boolean colorless) {
 			for (CacheResult element : this.elements) {
-				if (element.action == action && element.type == type) {
+				if (element.action == action && element.type == type && element.colorless == colorless) {
 					return element.cards;
 				}
 			}
 			return null;
 		}
 
-		public void set(DiscoveryAction action, AbstractCard.CardType type, ArrayList<AbstractCard> cards) {
+		public void set(DiscoveryAction action, AbstractCard.CardType type, boolean colorless, ArrayList<AbstractCard> cards) {
 			for (CacheResult element : this.elements) {
-				if (element.action == action && element.type == type) {
+				if (element.action == action && element.type == type && element.colorless == colorless) {
 					element.cards = cards;
 					return;
 				}
 			}
-			this.elements.add(new CacheResult(action, type, cards));
+			this.elements.add(new CacheResult(action, type, colorless, cards));
 		}
 	}
 }
