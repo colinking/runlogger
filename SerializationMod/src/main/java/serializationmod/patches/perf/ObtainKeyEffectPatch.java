@@ -8,8 +8,8 @@ public class ObtainKeyEffectPatch {
 	public static class ConstructorPatch {
 		public static void Postfix(ObtainKeyEffect instance, ObtainKeyEffect.KeyColor keyColor) {
 			// Speed up obtaining keys so that they are visible in the next state update.
-			instance.duration = 0.01F;
-			instance.startingDuration = 0.01F;
+			// instance.duration = 0.01F;
+			// instance.startingDuration = 0.01F;
 		}
 	}
 }

@@ -13,7 +13,7 @@ public class AbstractMonsterPatch {
 		public static void Postfix(AbstractMonster instance, boolean triggerRelics) {
 			// Speed up enemy deaths.
 			// TODO: apply to bosses too (onBossVictoryLogic)
-			instance.deathTimer = 0.05F;
+			// instance.deathTimer = 0.05F;
 		}
 	}
 }

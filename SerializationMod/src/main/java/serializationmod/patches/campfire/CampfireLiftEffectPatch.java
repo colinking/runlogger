@@ -1,4 +1,4 @@
-package serializationmod.patches;
+package serializationmod.patches.campfire;
 
 import com.evacipated.cardcrawl.modthespire.lib.SpirePatch;
 import com.google.gson.Gson;

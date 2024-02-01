@@ -12,6 +12,7 @@ import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.events.AbstractEvent;
+import com.megacrit.cardcrawl.events.shrines.GremlinMatchGame;
 import com.megacrit.cardcrawl.helpers.CardLibrary;
 import com.megacrit.cardcrawl.helpers.SeedHelper;
 import com.megacrit.cardcrawl.map.MapEdge;
@@ -36,9 +37,14 @@ import com.megacrit.cardcrawl.shop.StoreRelic;
 import com.megacrit.cardcrawl.ui.buttons.LargeDialogOptionButton;
 import com.megacrit.cardcrawl.ui.panels.EnergyPanel;
 import com.megacrit.cardcrawl.unlock.UnlockTracker;
+import com.megacrit.cardcrawl.vfx.AbstractGameEffect;
+import com.megacrit.cardcrawl.vfx.ObtainKeyEffect;
+import com.megacrit.cardcrawl.vfx.cardManip.ShowCardAndObtainEffect;
+import serializationmod.patches.events.GremlinMatchGamePatch;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.TreeMap;
 
@@ -188,6 +194,13 @@ public class GameStateConverter {
 		for (AbstractCard card : AbstractDungeon.player.masterDeck.group) {
 			deck.add(getCardName(card));
 		}
+		for (AbstractGameEffect effect : AbstractDungeon.effectList) {
+			// Check for cards that are animating into the deck. Record them as already in the deck.
+			if (effect instanceof ShowCardAndObtainEffect && !effect.isDone) {
+				AbstractCard card = ReflectionHacks.getPrivate(effect, ShowCardAndObtainEffect.class, "card");
+				deck.add(getCardName(card));
+			}
+		}
 		state.put("deck", deck);
 
 		ArrayList<Object> potions = new ArrayList<>();
@@ -218,6 +231,21 @@ public class GameStateConverter {
 		}
 		if (Settings.hasSapphireKey) {
 			keys.put("sapphire", true);
+		}
+		for (AbstractGameEffect effect : AbstractDungeon.effectList) {
+			// Check for keys that are animating into an obtained state. Record them as already obtained.
+			if (effect instanceof ObtainKeyEffect && !effect.isDone) {
+				ObtainKeyEffect.KeyColor keyColor = ReflectionHacks.getPrivate(effect, ObtainKeyEffect.class, "keyColor");
+				if (keyColor == ObtainKeyEffect.KeyColor.RED) {
+					keys.put("ruby", true);
+				}
+				if (keyColor == ObtainKeyEffect.KeyColor.GREEN) {
+					keys.put("emerald", true);
+				}
+				if (keyColor == ObtainKeyEffect.KeyColor.BLUE) {
+					keys.put("sapphire", true);
+				}
+			}
 		}
 		if (!keys.isEmpty()) {
 			state.put("keys", keys);
@@ -299,6 +327,30 @@ public class GameStateConverter {
 				options.add(json_button);
 			}
 //            state.put("body_text", removeTextFormatting(UpdateBodyTextPatch.bodyText));
+		} else if (event instanceof GremlinMatchGame) {
+			ArrayList<AbstractCard> orderedCards = new ArrayList<>(GremlinMatchGamePatch.cards);
+			orderedCards.sort(Comparator.comparingInt(c -> GremlinMatchGamePatch.cardPositions.get(c.uuid)));
+			AbstractCard chosenCard = ReflectionHacks.getPrivate(event, GremlinMatchGame.class, "chosenCard");
+			for (AbstractCard card : orderedCards) {
+				if (GremlinMatchGamePatch.matchedCards.contains(card.uuid)) {
+					// This card was already matched. "Remove" it from the option grid.
+					options.add(null);
+				} else {
+					TreeMap<String, Object> option = new TreeMap<>();
+					if (GremlinMatchGamePatch.revealedCards.contains(card.uuid)) {
+						option.put("card", getCardName(card));
+					} else {
+						// The user doesn't know which card this is yet.
+						option.put("card", null);
+					}
+
+					if (chosenCard != null && chosenCard.uuid == card.uuid) {
+						option.put("selected", true);
+					}
+
+					options.add(option);
+				}
+			}
 		} else {
 			for (String misc_option : ChoiceScreenUtils.getEventScreenChoices()) {
 				TreeMap<String, Object> json_button = new TreeMap<>();
@@ -311,6 +363,8 @@ public class GameStateConverter {
 			}
 			state.put("body_text", "");
 		}
+		state.put("options", options);
+
 		state.put("event_name", ReflectionHacks.getPrivateStatic(event.getClass(), "NAME"));
 		if (event instanceof NeowEvent) {
 			state.put("event_id", "Neow Event");
@@ -326,7 +380,6 @@ public class GameStateConverter {
 			}
 			state.put("event_id", ReflectionHacks.getPrivateStatic(event.getClass(), "ID"));
 		}
-		state.put("options", options);
 		return state;
 	}
 

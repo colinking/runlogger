@@ -38,7 +38,7 @@ public class BossRelicSelectScreenPatch {
 			SerializationMod.run.append(GameStateConverter.getFloorState());
 
 			TreeMap<String, Object> action = new TreeMap<>();
-			action.put("_type", "action:skip_boss_relic");
+			action.put("_type", "action:skip");
 
 			Gson gson = new Gson();
 			SerializationMod.run.append(gson.toJson(action));

@@ -18,9 +18,10 @@ public class ExordiumPatch {
 		}
 	)
 	public static class ConstructorPatch {
-		public static void Postfix(Exordium instance, AbstractPlayer p, ArrayList emptyList) {
-			// SerializationMod.run = new RunFile(Settings.seed, p.chosenClass);
+		public static void Prefix(Exordium instance, AbstractPlayer p, ArrayList emptyList) {
 			SerializationMod.run.clear();
+		}
+		public static void Postfix(Exordium instance, AbstractPlayer p, ArrayList emptyList) {
 			SerializationMod.run.append(GameStateConverter.getRunState());
 		}
 	}

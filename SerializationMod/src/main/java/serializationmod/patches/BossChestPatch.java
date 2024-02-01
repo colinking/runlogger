@@ -2,7 +2,6 @@ package serializationmod.patches;
 
 import com.evacipated.cardcrawl.modthespire.lib.SpirePatch;
 import com.google.gson.Gson;
-import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.rewards.chests.BossChest;
 import serializationmod.GameStateConverter;
 import serializationmod.SerializationMod;
@@ -16,10 +15,6 @@ public class BossChestPatch {
 	)
 	public static class OpenPatch {
 		public static void Prefix(BossChest instance, boolean bossChest) {
-			if (AbstractDungeon.actNum >= 4) {
-				return;
-			}
-
 			SerializationMod.run.append(GameStateConverter.getFloorState());
 
 			TreeMap<String, Object> action = new TreeMap<>();

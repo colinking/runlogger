@@ -19,7 +19,7 @@ jq -r '.DEFAULT_SLOT |= "1"' preferences/STSSaveSlots.backUp > preferences/STSSa
 
 # SaveStateMod,stslib,LudicrousSpeed
 # ojb_FilterTheSpire
-MODS="basemod,superfastmode,SerializationMod"
+MODS="basemod,SerializationMod,superfastmode"
 if [ ! -z "${1:-}" ]; then
   MODS="${MODS},$1"
 fi
