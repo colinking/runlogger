@@ -48,7 +48,7 @@ public class RandomPatch {
 				sb.append(e);
 			}
 
-			SerializationMod.logger.info(sb.toString());
+			SerializationMod.logger.debug(sb.toString());
 		}
 	}
 

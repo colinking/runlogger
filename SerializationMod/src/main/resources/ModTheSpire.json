@@ -1,8 +1,8 @@
 {
-  "modid": "${project.artifactId}",
+  "modid": "${modID}",
   "name": "${project.name}",
-  "author_list": ["Colin King"],
-  "description": "${project.description}",
+  "author_list": ["${author}"],
+  "description": "!(project.description)",
   "version": "${project.version}",
   "sts_version": "${SlayTheSpire.version}",
   "mts_version": "${ModTheSpire.version}",

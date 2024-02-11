@@ -16,7 +16,7 @@ cp \
   "/Users/colin/dev/github.com/colinking/serializationmod/lib"
 ```
 
-2. Build `SerializationMod` by running `mvn package`.
+2. Build `serializationmod` by running `mvn package`.
 
 If running in IntelliJ, you may need to "Invalidate caches and restart" to get it to pick up the libraries you copied over in (1).
 

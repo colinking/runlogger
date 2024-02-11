@@ -4,6 +4,9 @@ import basemod.BaseMod;
 import basemod.ModLabeledToggleButton;
 import basemod.ModPanel;
 import basemod.interfaces.PostInitializeSubscriber;
+import com.evacipated.cardcrawl.modthespire.Loader;
+import com.evacipated.cardcrawl.modthespire.ModInfo;
+import com.evacipated.cardcrawl.modthespire.Patcher;
 import com.evacipated.cardcrawl.modthespire.lib.SpireConfig;
 import com.evacipated.cardcrawl.modthespire.lib.SpireInitializer;
 import com.megacrit.cardcrawl.core.Settings;
@@ -11,17 +14,21 @@ import com.megacrit.cardcrawl.helpers.FontHelper;
 import com.megacrit.cardcrawl.helpers.ImageMaster;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.scannotation.AnnotationDB;
 
 import java.io.IOException;
-import java.util.Properties;
+import java.util.*;
 
 @SpireInitializer
 public class SerializationMod implements PostInitializeSubscriber {
-	public static final Logger logger = LogManager.getLogger(SerializationMod.class.getName());
-	private static final String MODNAME = "Serialization Mod";
-	private static final String AUTHOR = "Colin King";
-	private static final String DESCRIPTION = "Serializes the state of Slay the Spire runs.";
-	private static SpireConfig communicationConfig;
+	public static ModInfo info;
+	public static String modID;
+	static { loadModInfo(); }
+
+	public static final Logger logger = LogManager.getLogger(modID);
+
+	// Config options
+	private static SpireConfig config;
 	private static final String VERBOSE_OPTION = "verbose";
 	private static final boolean DEFAULT_VERBOSITY = false;
 
@@ -32,7 +39,7 @@ public class SerializationMod implements PostInitializeSubscriber {
 		try {
 			Properties defaults = new Properties();
 			defaults.put(VERBOSE_OPTION, Boolean.toString(DEFAULT_VERBOSITY));
-			communicationConfig = new SpireConfig("SerializationMod", "config", defaults);
+			config = new SpireConfig(modID, "config", defaults);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -43,6 +50,7 @@ public class SerializationMod implements PostInitializeSubscriber {
 		new SerializationMod();
 	}
 
+	@Override
 	public void receivePostInitialize() {
 		setUpOptionsMenu();
 	}
@@ -52,14 +60,14 @@ public class SerializationMod implements PostInitializeSubscriber {
 
 		ModLabeledToggleButton verbosityOption = new ModLabeledToggleButton(
 			"Show verbose log output",
-			350, 500, Settings.CREAM_COLOR, FontHelper.charDescFont,
+			390, 720, Settings.CREAM_COLOR, FontHelper.charDescFont,
 			getVerbosityOption(), settingsPanel, modLabel -> {
 		},
 			modToggleButton -> {
-				if (communicationConfig != null) {
-					communicationConfig.setBool(VERBOSE_OPTION, modToggleButton.enabled);
+				if (config != null) {
+					config.setBool(VERBOSE_OPTION, modToggleButton.enabled);
 					try {
-						communicationConfig.save();
+						config.save();
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -67,13 +75,32 @@ public class SerializationMod implements PostInitializeSubscriber {
 			});
 		settingsPanel.addUIElement(verbosityOption);
 
-		BaseMod.registerModBadge(ImageMaster.loadImage("Icon.png"), MODNAME, AUTHOR, DESCRIPTION, settingsPanel);
+		// Set up the mod information displayed in the in-game mods menu.
+		BaseMod.registerModBadge(ImageMaster.loadImage(modID+".png"), info.Name, info.Authors[0], info.Description, settingsPanel);
 	}
 
 	private static boolean getVerbosityOption() {
-		if (communicationConfig == null) {
+		if (config == null) {
 			return DEFAULT_VERBOSITY;
 		}
-		return communicationConfig.getBool(VERBOSE_OPTION);
+		return config.getBool(VERBOSE_OPTION);
+	}
+
+	// This determines the mod's ID based on information stored by ModTheSpire.
+	private static void loadModInfo() {
+		Optional<ModInfo> infos = Arrays.stream(Loader.MODINFOS).filter((modInfo)->{
+			AnnotationDB annotationDB = Patcher.annotationDBMap.get(modInfo.jarURL);
+			if (annotationDB == null)
+				return false;
+			Set<String> initializers = annotationDB.getAnnotationIndex().getOrDefault(SpireInitializer.class.getName(), Collections.emptySet());
+			return initializers.contains(SerializationMod.class.getName());
+		}).findFirst();
+		if (infos.isPresent()) {
+			info = infos.get();
+			modID = info.ID;
+		}
+		else {
+			throw new RuntimeException("Failed to determine mod info/ID based on initializer.");
+		}
 	}
 }
