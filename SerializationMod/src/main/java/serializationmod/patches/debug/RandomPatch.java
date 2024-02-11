@@ -28,10 +28,14 @@ public class RandomPatch {
 				return;
 			}
 
-			String msg = "";
-			msg += ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'h:m:ss.SZ"));
-			msg += " log=" + SerializationMod.run.lines;
-			msg += " " + RandomPatch.getRNGName(instance) + "=" + instance.counter;
+			StringBuilder sb = new StringBuilder();
+			sb.append(ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'h:m:ss.SZ")));
+			sb.append(" log=");
+			sb.append(SerializationMod.run.numLines);
+			sb.append(" ");
+			sb.append(RandomPatch.getRNGName(instance));
+			sb.append("=");
+			sb.append(instance.counter);
 
 			StackTraceElement[] trace = Thread.currentThread().getStackTrace();
 			for (StackTraceElement e : trace) {
@@ -40,10 +44,11 @@ public class RandomPatch {
 					continue;
 				}
 
-				msg += "\n" + e.toString();
+				sb.append("\n");
+				sb.append(e);
 			}
 
-			SerializationMod.run.debugLog(msg);
+			SerializationMod.logger.info(sb.toString());
 		}
 	}
 
