@@ -1,6 +1,5 @@
 package serializationmod.patches;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.evacipated.cardcrawl.modthespire.lib.*;
 import com.evacipated.cardcrawl.modthespire.patcher.PatchingException;
@@ -29,10 +28,8 @@ public class GameOverScreenPatch {
 			//
 			// Note that we can't store it directly in the "runs/" directory, otherwise STS detects it as an invalid run
 			// file and automatically deletes it.
-			String src = SerializationMod.run.getPath();
-			String dst = "runlogs" + File.separator + MetricsPatch.lastRunDir + File.separator + MetricsPatch.lastRunFileName + ".log";
-			SerializationMod.logger.info("Moving {} to {}", src, dst);
-			Gdx.files.local(src).moveTo(Gdx.files.local(dst));
+			String path = "runlogs" + File.separator + GameOverScreenPatch.MetricsPatch.lastRunDir + File.separator + GameOverScreenPatch.MetricsPatch.lastRunFileName + ".log";
+			SerializationMod.run.move(path);
 
 			SerializationMod.run = null;
 		}

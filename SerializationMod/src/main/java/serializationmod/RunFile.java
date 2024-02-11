@@ -27,15 +27,15 @@ public class RunFile {
 		this.buffer = new ArrayList<>();
 
 		if (!isContinue) {
-			// If this is a new run, ensure the logs are cleared.
+			// If this is a new run, ensure we have a fresh log.
 			//
-			// This can happen if a user abandons a run from the main menu, since a ".run" file is never created in that
-			// case (and therefore, we don't know what to name the run...so we just delete it). TIL this also means
-			// those runs don't show up in your run history!
-			//
-			// There are other edge cases where this could also happen (e.g. a user finishes a run without Serialization
-			// Mod).
-			Gdx.files.local(this.getPath()).delete();
+			// Generally the log should be empty, since it'll get moved out of the saves directory upon victory/death.
+			// However, if the run wasn't completed (or was abandoned from the main menu), the log will still be there.
+			// Since a ".run" file doesn't exist, we don't keep this run log around. Instead, we temporarily back it up.
+			FileHandle src = Gdx.files.local(this.getPath());
+			if (src.exists()) {
+				src.moveTo(Gdx.files.local(this.getPath()+".backUp"));
+			}
 		}
 	}
 
@@ -59,6 +59,14 @@ public class RunFile {
 
 		FileHandle file = Gdx.files.local(this.getPath());
 		file.writeString(sb.toString(), true);
+	}
+
+	public void move(String dst) {
+		String src = this.getPath();
+		SerializationMod.logger.info("Moving run log: {} to {}", src, dst);
+		Gdx.files.local(src).moveTo(Gdx.files.local(dst));
+		// Clean up any backups that may exist.
+		Gdx.files.local(src+".backUp").delete();
 	}
 
 	public String getPath() {

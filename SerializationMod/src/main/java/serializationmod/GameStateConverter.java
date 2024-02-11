@@ -10,10 +10,12 @@ import com.megacrit.cardcrawl.characters.AbstractPlayer;
 import com.megacrit.cardcrawl.core.AbstractCreature;
 import com.megacrit.cardcrawl.core.CardCrawlGame;
 import com.megacrit.cardcrawl.core.Settings;
+import com.megacrit.cardcrawl.daily.mods.AbstractDailyMod;
 import com.megacrit.cardcrawl.dungeons.AbstractDungeon;
 import com.megacrit.cardcrawl.events.AbstractEvent;
 import com.megacrit.cardcrawl.events.shrines.GremlinMatchGame;
 import com.megacrit.cardcrawl.helpers.CardLibrary;
+import com.megacrit.cardcrawl.helpers.ModHelper;
 import com.megacrit.cardcrawl.helpers.SeedHelper;
 import com.megacrit.cardcrawl.map.MapEdge;
 import com.megacrit.cardcrawl.map.MapRoomNode;
@@ -30,6 +32,8 @@ import com.megacrit.cardcrawl.rewards.RewardItem;
 import com.megacrit.cardcrawl.rooms.*;
 import com.megacrit.cardcrawl.screens.GameOverScreen;
 import com.megacrit.cardcrawl.screens.GameOverStat;
+import com.megacrit.cardcrawl.screens.custom.CustomMod;
+import com.megacrit.cardcrawl.screens.custom.CustomModeScreen;
 import com.megacrit.cardcrawl.screens.select.GridCardSelectScreen;
 import com.megacrit.cardcrawl.shop.ShopScreen;
 import com.megacrit.cardcrawl.shop.StorePotion;
@@ -43,10 +47,7 @@ import com.megacrit.cardcrawl.vfx.cardManip.ShowCardAndObtainEffect;
 import serializationmod.patches.events.GremlinMatchGamePatch;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.TreeMap;
+import java.util.*;
 
 public class GameStateConverter {
 	/**
@@ -106,7 +107,26 @@ public class GameStateConverter {
 			state.put("demo", true);
 		}
 		if (Settings.isTrial) {
-			state.put("trial", true);
+			state.put("custom", true);
+		}
+		if (Settings.isDailyRun) {
+			state.put("daily", Settings.dailyDate);
+		}
+
+		TreeSet<String> modifiers = new TreeSet<>();
+		for (AbstractDailyMod modifier : ModHelper.enabledMods) {
+			modifiers.add(modifier.modID);
+		}
+		if (Settings.isTrial) {
+			ArrayList<CustomMod> modList = ReflectionHacks.getPrivate(CardCrawlGame.mainMenuScreen.customModeScreen, CustomModeScreen.class, "modList");
+			for (CustomMod modifier : modList) {
+				if (modifier.selected) {
+					modifiers.add(modifier.ID);
+				}
+			}
+		}
+		if (!modifiers.isEmpty()) {
+			state.put("modifiers", modifiers);
 		}
 
 		state.put("note_for_yourself_card", getNoteForYourselfCard());
