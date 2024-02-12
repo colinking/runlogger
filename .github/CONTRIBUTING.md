@@ -1,38 +1,35 @@
+# Contributing
+
 ## Building from source
 
-1. Copy over the necessary JARs by running the following commands:
+To build this mod from source, run `mvn package`. This will automatically copy the JAR into the STS mods folder. Make sure to enable Serialization Mod in the ModTheSpire menu.
 
-```sh
-# Change the pathnames as necessary 
-mkdir "/Users/colin/dev/github.com/colinking/serializationmod/lib" 
-cp \
-  "/Users/colin/Library/Application Support/Steam/steamapps/workshop/content/646570/1605060445/ModTheSpire.jar" \
-  "/Users/colin/dev/github.com/colinking/serializationmod/lib"
-cp \
-  "/Users/colin/Library/Application Support/Steam/steamapps/workshop/content/646570/1605833019/BaseMod.jar" \
-  "/Users/colin/dev/github.com/colinking/serializationmod/lib"
-cp \
-  "/Users/colin/Library/Application Support/Steam/steamapps/common/SlayTheSpire/SlayTheSpire.app/Contents/Resources/desktop-1.0.jar" \
-  "/Users/colin/dev/github.com/colinking/serializationmod/lib"
-```
+## Running STS (faster)
 
-2. Build `serializationmod` by running `mvn package`.
+It is faster to start STS via the ModTheSpire launcher directly (instead of via Steam).
 
-If running in IntelliJ, you may need to "Invalidate caches and restart" to get it to pick up the libraries you copied over in (1).
+This repo includes a script that handles that for you -- just run `./scripts/run.sh`.  
 
-## Running STS
+Keep in mind:
 
-You need to run STS using Java 8 which is automatically installed by Steam. You can run directly from Steam, but it is faster to boot from the terminal:
+- This assumes you have a save slot for modding, specifically the second save slot. This script automatically switches
+  to that save slot to avoid polluting your main save slot.
+- You can access the STS log via `<sts_dir>/sendToDevs/logs/SlayTheSpire.log` which includes any logs produced by this mod.
 
-Run `./run.sh`.
+## Replaying run logs
 
-Some advice:
+You can replay a run log using [CommunicationMod](https://steamcommunity.com/workshop/filedetails/?id=2131373661), however the tooling is in another repo. I'm planning to move that here soon.
 
+Keep in mind:
+
+- You should use a separate save slot, otherwise you'll pollute your run history with replays.
+- If debugging a replay via CommunicationMod, errors will be printed in `<sts_dir>/communication_mod_errors.log`
 - You may also want to configure superfastmode to use 1000% game speed.
-- For debugging purposes, you can download the Java source code [here](https://hg.openjdk.org/jdk8u/jdk8u-dev/jdk/rev/3ad9fa6a5a13) (based on [these instructions](https://stackoverflow.com/a/54009204)).
-- You can access the STS log via `code ~/Library/Application Support/Steam/steamapps/common/SlayTheSpire/SlayTheSpire.app/Contents/Resources/sendToDevs/logs/SlayTheSpire.log`
+- You will need to enable all unlocks -- see below.
 
-You'll also want to enable all unlocks:
+### Unlocks
+
+These files all live in your STS directory.
 
 ```sh
 # Unlock ascension mode + ascension 20
