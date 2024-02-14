@@ -15,35 +15,61 @@ at each point.
 // ...
 ```
 
+Using run logs, you can perform more detailed data analysis compared to `.run` files (which only contains per-floor
+metrics), e.g,:
+
+1. How often you play specific cards against each enemy  
+2. How often you "brick" a draw
+3. How long it takes to get different decks online
+
+Additionally, these run logs can be used as test cases for Slay the Spire ports to ensure they have identical behavior
+to the PC implementation.
+
 This mod is primarily intended for creating conformance tests for Slay the Spire ports (e.g. to create a 100% compatible
 Python port that could be used for training AIs). It can also be used for performing much more detailed data analysis
 than what can be done with normal `.run` files.
 
-## Installation
+## Get started
 
 Install this mod by subscribing to it in the [Steam workshop](https://steamcommunity.com/workshop/filedetails/?id=3156775649).
 
+> [!NOTE]  
+> This mod is currently in **beta**.
+>
+> If you run into any issues, notice any discrepancies in your run logs, or have any feedback, please
+> [open an issue on GitHub](https://github.com/colinking/serializationmod/issues/new)!
+> 
+> Until this mod reaches 1.0.0, there may be breaking changes to the run log format.
+
+> [!NOTE]  
+> Due to a bug in Slay the Spire, runs are not always reproducible. This can be fixed by installing
+> [Determinism Fix](https://github.com/colinking/determinismfix).
+
+## Where are my run logs?
+
+Run logs are stored in a `.run.log` file in your Slay the Spire directory.
+
+Until a run is finished, the log file is stored next to the run's save file (e.g. `saves/IRONCLAD.run.log`).
+
+Once the run finishes, the log is renamed to match the `.run` file and moved to a `runlogs` folder in your Slay the
+Spire directory (e.g. `runlogs/IRONCLAD/1707684719.run.log`). 
+
 ## Log format
 
-Run logs are stored in a `.run.log` file.
+Each line in the file is a JSON object containing a `_type` field indicating what the object represents.
 
-TODO
+There are three kinds of "state" objects:
+- `_type: "state:run"`: Contains run-level data, e.g. the seed and character. Always the first line of the file.
+- `_type: "state:act"`: Contains act-level data, e.g. the map and boss. Printed at the beginning of each act.
+- `_type: "state:floor"`: Contains floor-level data and depends on the kind of floor (e.g. dialog options for events, 
+  deck/enemies/etc. for combats).
 
-## Overview
+The rest of the logs represent actions and each will include additional information describing the action.
+- `_type: "action:play_card"`: A card was played during combat.
+- `_type: "action:select_map"`: The player navigated to a new floor.
+- (etc.)
 
-- As you play STS, a run log is created that tracks all actions taken in the run and the state of the game in-between.
-- Unlike the vanilla `.run` file or Run History Plus's `.run` file which record aggregate stats per floor, this records everything that happened in the run.
-- This can be used for a variety of use-cases, primarily:
-  - Conformance testing for porting STS
-  - Data analysis
-- This mod can also be used to "replay" a run, e.g. to return to an arbitrary point and try different actions. However,
-  that can likely be better suited by other mods, e.g. Save State.
-- For examples, see the `runs/` folder.
-- Logs are stored in your STS directory. Until a run completes, they are stored next to the corresponding savefile (e.g. `saves/WATCHER.run.log`). Once a run is completed
-
-- This mod is in beta. If you run into any issues, please report them on GitHub. While in beta, the format of the run logs may change.
-- Recommend also running Determinism Fix. Does not impact competitive integrity of the game.
-- This mod is compatible with other QOL mods (e.g. Run History Plus), but it does not support mods that introduce new game mechanics as it only detects vanilla actions.
+For more information on the format of each object type, see the [runs](./runs) folder for example run logs.
 
 ## Contributing
 
