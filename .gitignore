@@ -26,10 +26,16 @@ hs_err_pid*
 # IntelliJ
 .idea/
 out/
-CommunicationMod.iml
 
 # maven
 target/
 dependency-reduced-pom.xml
 
+# macOS
 .DS_Store
+
+# Steam
+steam
+
+# Pixel art
+*.pixil

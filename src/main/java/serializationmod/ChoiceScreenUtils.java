@@ -714,6 +714,7 @@ public class ChoiceScreenUtils {
 				}
 			}
 		}
+
 		return choices;
 	}
 
@@ -795,7 +796,7 @@ public class ChoiceScreenUtils {
 //            ArrayList<AbstractCard> pickableCards = GremlinMatchGamePatch.getOrderedCards();
 //            for (AbstractCard c : pickableCards) {
 //                if (GremlinMatchGamePatch.revealedCards.contains(c.uuid)) {
-//                    choiceList.add(c.cardID);
+//                    choiceList.add(GameStateConverter.getCardName(c));
 //                } else {
 //                    choiceList.add(String.format("card%d", GremlinMatchGamePatch.cardPositions.get(c.uuid)));
 //                }
