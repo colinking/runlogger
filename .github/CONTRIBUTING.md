@@ -181,3 +181,19 @@ These files all live in your STS directory.
   "DEFECT_WIN": "true"
 }
 ```
+
+## Releasing on Steam
+
+> [Source](https://discord.com/channels/309399445785673728/398373038732738570/530563880565342228)
+
+Build the JAR and copy it to `steam/serializationmod/content`. This folder can be generated via the `mod-uploader`
+command in the Discord link above.
+
+Make sure you've updated the version number in `pom.xml`. Create a GitHub release. Make sure to include a description of
+what changed. Copy that description into `changeNote` in the Steam `config.json`.
+
+Upload to Steam by running this from your Slay the Spire directory:
+
+```
+./jre/bin/java -jar ./mod-uploader.jar upload -w=serializationmod
+```
