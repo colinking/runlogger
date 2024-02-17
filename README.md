@@ -4,7 +4,7 @@ This [Slay the Spire](https://store.steampowered.com/app/646570/Slay_the_Spire/)
 run, including all actions taken (such as playing a card or responding to an event dialog) along with state of the game
 at each point.
 
-```json
+```jsonc
 // saves/IRONCLAD.run.log
 {"_type":"state:run","ascension":0,"class":"IRONCLAD","seed":"1SK2FJMAA7GY1", /** ... */}
 // ...
@@ -31,7 +31,7 @@ implementation.
 Install this mod by subscribing to it in the [Steam workshop](https://steamcommunity.com/workshop/filedetails/?id=3156775649).
 
 > [!NOTE]  
-> This mod is currently in **beta**.
+> This mod is currently in **beta**: the run log format may change and you may encounter bugs.
 >
 > If you run into any issues, notice any discrepancies in your run logs, or have any feedback, please
 > [open an issue on GitHub](https://github.com/colinking/serializationmod/issues/new)!
