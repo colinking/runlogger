@@ -23,8 +23,8 @@ metrics), such as:
 3. How long it takes to get different decks online
 4. (etc.)
 
-These run logs can also be used as test cases for Slay the Spire ports to ensure they have identical behavior to the PC
-implementation.
+However, these runs logs are primarily intended to serve as test cases for Slay the Spire ports to ensure they have
+identical behavior to the PC implementation.
 
 ## Get started
 
@@ -33,11 +33,11 @@ Install this mod by subscribing to it in the [Steam workshop](https://steamcommu
 > [!NOTE]  
 > This mod is currently in **beta**: the run log format may change and you may encounter bugs.
 >
-> If you run into any issues, notice any discrepancies in your run logs, or have any feedback, please
+> If you encounter bugs or have feedback, please
 > [open an issue on GitHub](https://github.com/colinking/serializationmod/issues/new)!
 
 > [!NOTE]  
-> Due to a bug in Slay the Spire, runs are not always reproducible. This can be fixed by installing
+> Due to a bug, Slay the Spire runs are not always reproducible. This can be fixed by installing
 > [Determinism Fix](https://github.com/colinking/determinismfix).
 
 ## Where are my run logs?
