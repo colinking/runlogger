@@ -1,4 +1,4 @@
-# Serialization Mod
+# Run Logger
 
 This [Slay the Spire](https://store.steampowered.com/app/646570/Slay_the_Spire/) mod generates a detailed log for each
 run, including all actions taken (such as playing a card or responding to an event dialog) along with state of the game
@@ -34,7 +34,7 @@ Install this mod by subscribing to it in the [Steam workshop](https://steamcommu
 > This mod is currently in **beta**: the run log format may change and you may encounter bugs.
 >
 > If you encounter bugs or have feedback, please
-> [open an issue on GitHub](https://github.com/colinking/serializationmod/issues/new)!
+> [open an issue on GitHub](https://github.com/colinking/runlogger/issues/new)!
 
 > [!NOTE]  
 > Due to a bug, Slay the Spire runs are not always reproducible. This can be fixed by installing
@@ -92,4 +92,4 @@ For more information on the format of each object type, see the [runs](./runs) f
 
 ## Contributing
 
-For information about developing on Serialization Mod, see [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+For information about developing on Run Logger, see [CONTRIBUTING.md](.github/CONTRIBUTING.md).

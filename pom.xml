@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <properties>
-        <modID>serializationmod</modID>
+        <modID>runlogger</modID>
         <author>Colin King</author>
 
         <steam.windows>C:/Program Files (x86)/steam/steamapps</steam.windows>
@@ -23,9 +23,9 @@
     </properties>
 
     <!-- This information will be displayed in ModTheSpire, the modded launcher. -->
-    <name>Serialization Mod</name>
+    <name>Run Logger</name>
     <version>0.1.0</version>
-    <description>Serializes the state and actions taken into a run log.</description>
+    <description>Logs the state and actions taken in a run to a file.</description>
 
     <groupId>co.colinking</groupId>
     <artifactId>${modID}</artifactId>

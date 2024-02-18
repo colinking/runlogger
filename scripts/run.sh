@@ -21,7 +21,7 @@ cp preferences/STSSaveSlots preferences/STSSaveSlots.backUp
 jq -r '.DEFAULT_SLOT |= "1"' preferences/STSSaveSlots.backUp > preferences/STSSaveSlots
 
 # These mods are always enabled.
-MODS="basemod,determinismfix,serializationmod"
+MODS="basemod,determinismfix,runlogger"
 # Additional mods can be passed in as $1.
 if [ ! -z "${1:-}" ]; then
   MODS="${MODS},$1"
