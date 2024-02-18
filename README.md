@@ -28,7 +28,7 @@ identical behavior to the PC implementation.
 
 ## Get started
 
-Install this mod by subscribing to it in the [Steam workshop](https://steamcommunity.com/workshop/filedetails/?id=3156775649).
+Install this mod by subscribing to it in the [Steam workshop](https://steamcommunity.com/workshop/filedetails/?id=3163008572).
 
 > [!NOTE]  
 > This mod is currently in **beta**: the run log format may change and you may encounter bugs.

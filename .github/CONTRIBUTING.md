@@ -195,5 +195,5 @@ what changed. Copy that description into `changeNote` in the Steam `config.json`
 Upload to Steam by running this from your Slay the Spire directory:
 
 ```
-./jre/bin/java -jar ./mod-uploader.jar upload -w=runlogger
+./jre/bin/java -jar ./mod-uploader.jar upload -w=./path/to/runlogger/directory
 ```
